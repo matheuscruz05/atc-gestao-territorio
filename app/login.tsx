@@ -17,13 +17,18 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const colors = useColors();
 
   const handleLogin = async () => {
     if (!email.trim() || !senha.trim()) {
       Alert.alert("Erro", "Por favor, preencha email e senha");
+      return;
+    }
+
+    if (authLoading) {
+      // Evita múltiplos cliques enquanto auth inicia/sincroniza
       return;
     }
 
@@ -101,10 +106,10 @@ export default function LoginScreen() {
           <TouchableOpacity
             className="bg-primary rounded-lg py-4 items-center mt-4"
             onPress={handleLogin}
-            disabled={isLoading}
+            disabled={isLoading || authLoading}
             activeOpacity={0.8}
           >
-            {isLoading ? (
+            {isLoading || authLoading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
               <Text className="text-white font-semibold text-base">

@@ -106,6 +106,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializeApp();
   }, []);
 
+  // Garante que os dados seed estejam disponíveis se a sync ainda não ocorreu
+  const ensureSeedData = async (): Promise<Usuario[]> => {
+    const usuarios = await getUsuarios();
+    if (usuarios.length > 0) return usuarios;
+
+    await setUsuarios(SEED_USUARIOS);
+    await setProdutos(SEED_PRODUTOS);
+    await setCanais(SEED_CANAIS);
+    await setUnidades(SEED_UNIDADES);
+    return SEED_USUARIOS;
+  };
+
   const login = async (email: string, senha: string): Promise<boolean> => {
     try {
       // Tentar autenticar com Google Sheets primeiro
@@ -119,20 +131,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Fallback para autenticação local
-      const usuarios = await getUsuarios();
+      // Fallback para autenticação local (garantindo seeds carregados)
+      const usuarios = await ensureSeedData();
       const usuario = usuarios.find(
         (u) => u.email.toLowerCase() === email.toLowerCase() && u.ativo
       );
 
-      if (usuario) {
-        // Validar a senha contra a senha armazenada do usuário
-        if (usuario.senha && usuario.senha === senha) {
-          await setCurrentUser(usuario);
-          setUser(usuario);
-          return true;
-        }
+      if (usuario && usuario.senha && usuario.senha === senha) {
+        await setCurrentUser(usuario);
+        setUser(usuario);
+        return true;
       }
+
       return false;
     } catch (error) {
       console.error("Login error:", error);
