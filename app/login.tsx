@@ -38,7 +38,10 @@ export default function LoginScreen() {
       if (success) {
         router.replace("/(tabs)");
       } else {
-        Alert.alert("Erro", "Email ou senha inválidos");
+        Alert.alert(
+          "Erro",
+          "Email ou senha inválidos. Se for sua primeira vez, use coord@atc.com / 123456 ou as credenciais cadastradas na planilha."
+        );
       }
     } catch (error) {
       Alert.alert("Erro", "Ocorreu um erro ao fazer login");

@@ -129,6 +129,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(result.usuario);
           return true;
         }
+
+        // Se a autenticação via Sheets falhar, registrar motivo e cair para local
+        if (result.error) {
+          console.warn("Auth Sheets fallback:", result.error);
+        }
       }
 
       // Fallback para autenticação local (garantindo seeds carregados)

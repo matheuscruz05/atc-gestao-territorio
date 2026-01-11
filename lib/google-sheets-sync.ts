@@ -38,16 +38,14 @@ const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 
 // --- Service Account / OAuth helpers ---
 import { SignJWT } from "jose";
+import { webcrypto } from "crypto";
 
-// Ensure WebCrypto is available for jose in Node (only attempt when running in Node)
+// Ensure WebCrypto is available for jose in Node
 if (typeof (globalThis as any).crypto === 'undefined') {
   try {
     const runningInNode = typeof process !== 'undefined' && (process as any).versions && (process as any).versions.node;
     if (runningInNode) {
-      // Use runtime require to avoid bundler static analysis resolving 'crypto'
-      // eslint-disable-next-line @typescript-eslint/no-implied-eval
-      const runtimeRequire = Function('return require')();
-      (globalThis as any).crypto = runtimeRequire('crypto').webcrypto;
+      (globalThis as any).crypto = webcrypto;
     }
   } catch (e) {
     // ignore
@@ -56,7 +54,7 @@ if (typeof (globalThis as any).crypto === 'undefined') {
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
-function loadServiceAccount() {
+async function loadServiceAccount() {
   const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   const keyFile = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
 
@@ -81,10 +79,9 @@ function loadServiceAccount() {
         return null;
       }
 
-      // Use runtime require to avoid bundler static analysis resolving 'fs'
-      // eslint-disable-next-line @typescript-eslint/no-implied-eval
-      const runtimeRequire = Function("return require")();
-      const raw = runtimeRequire("fs").readFileSync(keyFile, "utf-8");
+      // Use dynamic import instead of Function require
+      const { readFileSync } = await import("fs");
+      const raw = readFileSync(keyFile, "utf-8");
       return JSON.parse(raw);
     } catch (e) {
       console.warn("Could not read GOOGLE_SERVICE_ACCOUNT_KEY_FILE", e);
@@ -100,7 +97,7 @@ async function getServiceAccountToken() {
     return cachedToken.token;
   }
 
-  const sa = loadServiceAccount();
+  const sa = await loadServiceAccount();
   if (!sa) return null;
 
   const now = Math.floor(Date.now() / 1000);
@@ -112,7 +109,7 @@ async function getServiceAccountToken() {
     .setExpirationTime(now + 60 * 60)
     .setIssuer(sa.client_email)
     .setAudience(sa.token_uri)
-    .sign(joseKeyFromPrivateKey(sa.private_key));
+    .sign(await joseKeyFromPrivateKey(sa.private_key));
 
   // Exchange JWT for access token
   const tokenRes = await fetch(sa.token_uri, {
@@ -134,7 +131,7 @@ async function getServiceAccountToken() {
   return accessToken;
 }
 
-function joseKeyFromPrivateKey(pem: string) {
+async function joseKeyFromPrivateKey(pem: string) {
   // jose accepts PEM private keys directly via import
   // But SignJWT.sign expects a KeyLike; createPrivateKey is only available in Node.
   const runningInNode = typeof process !== 'undefined' && (process as any).versions && (process as any).versions.node;
@@ -142,10 +139,8 @@ function joseKeyFromPrivateKey(pem: string) {
     throw new Error('joseKeyFromPrivateKey requires Node crypto and cannot run in this environment');
   }
 
-  // Use runtime require to avoid bundler static analysis resolving 'crypto'
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
-  const runtimeRequire = Function('return require')();
-  const { createPrivateKey } = runtimeRequire('crypto');
+  // Use dynamic import instead of Function require
+  const { createPrivateKey } = await import('crypto');
   return createPrivateKey(pem);
 }
 
