@@ -30,8 +30,13 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env files - NUNCA COMMIT
+.env
+.env.local
+.env.vercel
+.env.*.local
+.env.production.local
+.env.test.local
 
 # typescript
 *.tsbuildinfo
@@ -55,9 +60,22 @@ logs
 
 # OS
 Thumbs.db
+.DS_Store
+*.swp
+
+# IDE específico
+.vscode/settings.json
+.idea/misc.xml
 
 # Build files
 *.tgz
 *.tar.gz
 .cache/
-secrets/*.json
+
+# SEGURANÇA: Arquivos sensíveis - NUNCA COMMIT!
+secrets/
+secrets/**/*.json
+.env.json
+google-key.json
+firebase-key.json
+credentials.json
