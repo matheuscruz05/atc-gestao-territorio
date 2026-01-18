@@ -13,7 +13,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/lib/auth-context";
 import { useColors } from "@/hooks/use-colors";
 import { getCadastros, setCadastros as setCadastrosStorage } from "@/lib/storage";
-import { deleteCadastroFromSheets } from "@/lib/google-sheets-sync";
+import { deleteCadastroFromSheets, syncCadastrosFromSheets } from "@/lib/google-sheets-sync";
 import { confirmAction } from "@/lib/confirm";
 import type { Cadastro, CategoriaData, Implantado } from "@/types/models";
 import { Picker } from "@react-native-picker/picker";
@@ -109,7 +109,23 @@ export default function CadastrosScreen() {
 
   const loadCadastros = useCallback(async () => {
     try {
-      const allCadastros = await getCadastros();
+      // Buscar SEMPRE do Google Sheets (ambiente web/Vercel)
+      let allCadastros: Cadastro[] = [];
+      try {
+        const sheetsCadastros = await syncCadastrosFromSheets();
+        if (sheetsCadastros && sheetsCadastros.length > 0) {
+          allCadastros = sheetsCadastros;
+          console.log(`✅ [Cadastros Screen] Carregados ${allCadastros.length} cadastros do Google Sheets`);
+        } else {
+          // Fallback para localStorage se Sheets estiver vazio
+          console.warn(`⚠️ [Cadastros Screen] Google Sheets vazio, usando localStorage como fallback`);
+          allCadastros = await getCadastros();
+        }
+      } catch (error) {
+        console.error(`❌ [Cadastros Screen] Erro ao buscar do Google Sheets, usando localStorage:`, error);
+        allCadastros = await getCadastros();
+      }
+      
       // Filtrar cadastros não deletados e converter para novo formato
       const active = allCadastros
         .filter(c => !c.deletado)

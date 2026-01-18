@@ -171,13 +171,28 @@ export default function AdminScreen() {
         console.warn("[Admin] syncAllFromSheets falhou, usando cache local", err);
       }
 
-      const [usuariosData, produtosData, canaisData, unidadesDataLocal, cadastrosData] =
+      // Buscar cadastros do Google Sheets primeiro
+      let cadastrosData: Cadastro[] = [];
+      try {
+        const sheetsCadastros = await syncCadastrosFromSheets();
+        if (sheetsCadastros && sheetsCadastros.length > 0) {
+          cadastrosData = sheetsCadastros;
+          console.log(`✅ [Admin] Carregados ${cadastrosData.length} cadastros do Google Sheets`);
+        } else {
+          console.warn(`⚠️ [Admin] Google Sheets vazio, usando localStorage como fallback`);
+          cadastrosData = await getCadastros();
+        }
+      } catch (error) {
+        console.error(`❌ [Admin] Erro ao buscar do Google Sheets, usando localStorage:`, error);
+        cadastrosData = await getCadastros();
+      }
+
+      const [usuariosData, produtosData, canaisData, unidadesDataLocal] =
         await Promise.all([
           getUsuarios(),
           getProdutos(),
           getCanais(),
           getUnidades(),
-          getCadastros(),
         ]);
 
       const unidadesData = refs?.unidades?.length ? refs.unidades : unidadesDataLocal;
