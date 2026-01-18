@@ -12,7 +12,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/lib/auth-context";
 import { useColors } from "@/hooks/use-colors";
 import { getCadastros, setCadastros } from "@/lib/storage";
-import { getCadastrosByAtc } from "@/lib/google-sheets-sync";
+import { getCadastrosByAtc, syncCadastrosFromSheets } from "@/lib/google-sheets-sync";
 import { CATEGORIAS, PRODUTOS_CATALOGO } from "@/types/models";
 import type { Cadastro, CategoriaData, Implantado } from "@/types/models";
 
@@ -220,28 +220,39 @@ export default function HomeScreen() {
       
       let allCadastros: Cadastro[] = [];
       
-      // Se for ATC, buscar primeiro do Google Sheets (Vercel/web)
-      if (!isCoord) {
-        try {
+      // Buscar SEMPRE do Google Sheets (ambiente web/Vercel)
+      try {
+        if (isCoord) {
+          // COORD: buscar TODOS os cadastros do Sheets
+          const sheetsCadastros = await syncCadastrosFromSheets();
+          if (sheetsCadastros && sheetsCadastros.length > 0) {
+            allCadastros = sheetsCadastros.filter(c => !c.deletado);
+            console.log(`✅ [COORD - Meus Cadastros] Carregados ${allCadastros.length} cadastros do Google Sheets`);
+          } else {
+            // Fallback para localStorage se Sheets estiver vazio
+            console.warn(`⚠️ [COORD - Meus Cadastros] Google Sheets vazio, usando localStorage como fallback`);
+            const localCadastros = await getCadastros();
+            allCadastros = localCadastros.filter(c => !c.deletado);
+          }
+        } else {
+          // ATC: buscar apenas seus cadastros do Sheets
           const sheetsCadastros = await getCadastrosByAtc(user.email);
           if (sheetsCadastros && sheetsCadastros.length > 0) {
             allCadastros = sheetsCadastros;
-            console.log(`✅ [Meus Cadastros] Carregados ${allCadastros.length} cadastros do Google Sheets`);
+            console.log(`✅ [ATC - Meus Cadastros] Carregados ${allCadastros.length} cadastros do Google Sheets`);
           } else {
             // Fallback para localStorage se Sheets estiver vazio
-            console.warn(`⚠️ [Meus Cadastros] Google Sheets vazio, usando localStorage como fallback`);
+            console.warn(`⚠️ [ATC - Meus Cadastros] Google Sheets vazio, usando localStorage como fallback`);
             const localCadastros = await getCadastros();
             allCadastros = localCadastros.filter(c => c.atcEmail === user.email && !c.deletado);
           }
-        } catch (error) {
-          console.error("❌ [Meus Cadastros] Erro ao buscar do Google Sheets, usando localStorage:", error);
-          const localCadastros = await getCadastros();
-          allCadastros = localCadastros.filter(c => c.atcEmail === user.email && !c.deletado);
         }
-      } else {
-        // Se for COORD, buscar de localStorage (comportamento original)
-        allCadastros = await getCadastros();
-        allCadastros = allCadastros.filter(c => !c.deletado);
+      } catch (error) {
+        console.error(`❌ [Meus Cadastros] Erro ao buscar do Google Sheets, usando localStorage:`, error);
+        const localCadastros = await getCadastros();
+        allCadastros = isCoord
+          ? localCadastros.filter(c => !c.deletado)
+          : localCadastros.filter(c => c.atcEmail === user.email && !c.deletado);
       }
       
       // Converter para novo formato
