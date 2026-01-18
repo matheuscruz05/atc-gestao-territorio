@@ -52,6 +52,21 @@ if (typeof (globalThis as any).crypto === 'undefined') {
   }
 }
 
+// Helpers
+function logDebug(scope: string, message: string, extra?: any) {
+  const timestamp = new Date().toISOString();
+  if (extra !== undefined) {
+    console.log(`[SheetsClient][${scope}] ${timestamp} - ${message}`, extra);
+  } else {
+    console.log(`[SheetsClient][${scope}] ${timestamp} - ${message}`);
+  }
+}
+
+const normalizeCategorias = (cadastro: Cadastro) => {
+  if (!cadastro || !Array.isArray((cadastro as any).categorias)) return [];
+  return (cadastro as any).categorias;
+};
+
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function loadServiceAccount() {
@@ -184,9 +199,10 @@ export async function syncUsuariosFromSheets(): Promise<Usuario[]> {
   }
 
   try {
-    const range = "USUARIOS!A2:E"; // Pula header - agora com 5 colunas (EMAIL, NOME, ROLE, SENHA, ATIVO)
+    const range = "USUARIOS!A2:G"; // Pula header - colunas: EMAIL, NOME, ROLE, SENHA, ATIVO, GC, GR
     const url = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${range}?key=${config.apiKey}`;
     
+    logDebug("syncUsuariosFromSheets", "Fetching usuarios range", range);
     const response = await fetch(url);
     const data = await response.json();
 
@@ -201,8 +217,10 @@ export async function syncUsuariosFromSheets(): Promise<Usuario[]> {
       role: (row[2]?.trim() || "ATC") as "ATC" | "COORD",
       senha: row[3]?.trim() || "",
       ativo: row[4] === "TRUE" || row[4] === "true" || row[4] === "TRUE",
+      gr: row[6]?.trim() || undefined, // Coluna G é GR (Gerente Regional)
     })).filter((u: Usuario) => u.email); // Filtrar emails vazios
 
+    logDebug("syncUsuariosFromSheets", "Loaded usuarios", { total: usuarios.length, withGr: usuarios.filter(u => u.gr).length });
     return usuarios;
   } catch (error) {
     console.error("Erro ao sincronizar usuários:", error);
@@ -305,7 +323,9 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
   }
 
   try {
-    const range = "CADASTROS!A2:O";
+    logDebug("syncCadastrosFromSheets", "Buscando cadastros do Sheets");
+    // Usar novo formato com JSON na coluna H
+    const range = "CADASTROS!A2:H1000";
     const url = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${range}?key=${config.apiKey}`;
     
     const headers = await getAuthHeaders();
@@ -320,6 +340,27 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
       if (offset === 1) {
         console.warn(`Detected leading empty column in CADASTROS row ${i + 2} — shifting values by 1.`);
       }
+
+      // Parse categorias from JSON (new format) or convert from old format
+      let categorias: any[] = [];
+      const categoriasJson = row[offset + 7];
+
+      if (categoriasJson) {
+        try {
+          const parsed = JSON.parse(categoriasJson);
+          // Garantir migração de dados antigos
+          categorias = parsed.map((cat: any) => ({
+            ...cat,
+            safra: cat.safra ?? "Verão",
+            potencialAtingido: cat.potencialAtingido ?? (cat.implantado === "Sim" ? (cat.potencialValor || 0) : 0),
+            potencialTotal: cat.potencialTotal ?? (cat.potencialValor || 0),
+          }));
+        } catch (e) {
+          console.warn(`[syncCadastrosFromSheets] Erro ao parsear categorias JSON no row ${i + 2}:`, e);
+          categorias = [];
+        }
+      }
+
       return {
         cadastroId: row[offset + 0] || "",
         criadoEm: row[offset + 1] || new Date().toISOString(),
@@ -328,15 +369,8 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
         canal: row[offset + 4] || "",
         unidade: row[offset + 5] || "",
         estado: row[offset + 6] || "",
-        categoria: row[offset + 7] || "",
-        produtoRef: row[offset + 8] || "",
-        produtoNomeLivre: row[offset + 9] || undefined,
-        nomeCliente: (row[offset + 9] || row[offset + 8] || "") as string,
-        unidadePotencial: (row[offset + 10] || "tons") as "tons" | "litros",
-        implantado: (row[offset + 11] || "Não") as "Sim" | "Não",
-        potencialValor: parseFloat(row[offset + 12]) || 0,
-        concorrentes: row[offset + 13] || "",
-        observacao: row[offset + 14] || "",
+        categorias,
+        deletado: false,
       } as Cadastro;
     }).filter((c: Cadastro) => c.cadastroId);
 
@@ -514,52 +548,30 @@ export async function sendCadastroToSheets(
   }
 
   try {
-    // Preparar dados para inserção
-    const row = [
-      cadastro.cadastroId,
-      cadastro.criadoEm,
-      cadastro.atcEmail,
-      cadastro.atcNome,
-      cadastro.canal,
-      cadastro.unidade,
-      cadastro.estado,
-      cadastro.categoria,
-      cadastro.produtoRef,
-      cadastro.produtoNomeLivre || "",
-      cadastro.unidadePotencial,
-      cadastro.implantado,
-      cadastro.potencialValor,
-      cadastro.concorrentes,
-      cadastro.observacao,
-    ];
+    logDebug("sendCadastro", "Enviando cadastro", { id: cadastro.cadastroId });
+    const categorias = normalizeCategorias(cadastro);
+    // Usar endpoint do servidor em vez de chamar Google Sheets diretamente
+    const serverUrl = "http://localhost:3000/api/sheets/cadastros";
 
-    // Escrever na próxima linha disponível explicitamente (mais robusto que append)
-    const rowsRange = "CADASTROS!A:A";
-    const rowsUrl = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${rowsRange}?key=${config.apiKey}`;
-    const authHeaders = await getAuthHeaders();
-
-    // Obter número da próxima linha (contar linhas existentes na coluna A)
-    const rowsRes = await fetch(rowsUrl, { headers: authHeaders });
-    const rowsData = await rowsRes.json();
-    const nextRow = (rowsData.values?.length || 1) + 1; // se tiver apenas header, nextRow = 2
-
-    const insertRange = `CADASTROS!A${nextRow}:O${nextRow}`;
-    const insertUrl = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${insertRange}?valueInputOption=RAW${config.apiKey ? `&key=${config.apiKey}` : ""}`;
-
-    const putResponse = await fetch(insertUrl, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ values: [row] }),
+    const response = await fetch(serverUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ...cadastro, categorias }),
     });
 
-    if (!putResponse.ok) {
-      const text = await putResponse.text();
-      throw new Error(`HTTP error! status: ${putResponse.status} body: ${text}`);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
 
+    const result = await response.json();
+
+    logDebug("sendCadastro", "Resultado", result);
     return {
-      success: true,
-      message: "Cadastro sincronizado com sucesso",
+      success: result.success,
+      message: result.message || "Cadastro sincronizado com sucesso",
     };
   } catch (error) {
     console.error("Erro ao enviar cadastro:", error);
@@ -580,6 +592,7 @@ export async function syncAllFromSheets(): Promise<{
   canais: Canal[];
   unidades: Unidade[];
 }> {
+  logDebug("syncAllFromSheets", "Iniciando");
   const [usuarios, produtos, canais, unidades] = await Promise.all([
     syncUsuariosFromSheets(),
     syncProdutosFromSheets(),
@@ -587,6 +600,12 @@ export async function syncAllFromSheets(): Promise<{
     syncUnidadesFromSheets(),
   ]);
 
+  logDebug("syncAllFromSheets", "Concluído", {
+    usuarios: usuarios.length,
+    produtos: produtos.length,
+    canais: canais.length,
+    unidades: unidades.length,
+  });
   return { usuarios, produtos, canais, unidades };
 }
 
@@ -604,56 +623,25 @@ export async function deleteCadastroFromSheets(
   }
 
   try {
-    // Buscar o cadastro para encontrar a linha
-    const range = "CADASTROS!A:A";
-    const url = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${range}?key=${config.apiKey}`;
-    const headers = await getAuthHeaders();
-    const response = await fetch(url, { headers });
-    const data = await response.json();
+    logDebug("deleteCadastro", "Deletando cadastro", { cadastroId });
+    // Usar endpoint do servidor
+    const serverUrl = `http://localhost:3000/api/sheets/cadastros/${cadastroId}`;
 
-    if (!data.values) {
-      return { success: true }; // Nenhum dado para deletar
-    }
-
-    // Encontrar a linha do cadastro
-    const rowIndex = data.values.findIndex(
-      (row: string[]) => row[0] === cadastroId
-    );
-
-    if (rowIndex === -1) {
-      return { success: true }; // Cadastro não encontrado (já pode estar deletado)
-    }
-
-    // Deletar a linha usando batchUpdate (apenas possível com Service Account)
-    // Como fallback, marcar como vazio é mais seguro
-    const deleteRange = `CADASTROS!A${rowIndex + 1}:O${rowIndex + 1}`;
-    const deleteUrl = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${deleteRange}?key=${config.apiKey}`;
-
-    const deleteResponse = await fetch(deleteUrl, {
+    const response = await fetch(serverUrl, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
-    if (!deleteResponse.ok && deleteResponse.status !== 204) {
-      // Se DELETE falhar, tentar limpar a linha (PUT com valores vazios)
-      const clearUrl = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${deleteRange}?valueInputOption=RAW&key=${config.apiKey}`;
-      const clearResponse = await fetch(clearUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
-        body: JSON.stringify({ values: [[]] }),
-      });
-
-      if (!clearResponse.ok) {
-        console.warn("Cadastro deletado localmente mas não foi removido do Sheets");
-        return { success: true }; // Mesmo assim retorna sucesso
-      }
+    if (!response.ok) {
+      console.warn("Erro ao deletar cadastro do Sheets, mas continuando");
     }
 
     return { success: true };
   } catch (error) {
     console.error("Erro ao deletar cadastro do Sheets:", error);
-    // Retorna sucesso mesmo com erro, pois foi deletado localmente
-    return { success: true };
+    return { success: true }; // Mesmo assim retorna sucesso
   }
 }
 
@@ -673,7 +661,9 @@ export async function syncAllCadastrosToSheets(
     };
   }
 
-  if (cadastros.length === 0) {
+  const ativos = cadastros.filter((c) => !(c as any).deletado);
+
+  if (ativos.length === 0) {
     return {
       success: true,
       message: "Nenhum cadastro para sincronizar",
@@ -681,50 +671,30 @@ export async function syncAllCadastrosToSheets(
   }
 
   try {
-    const rows = cadastros.map((cadastro) => [
-      cadastro.cadastroId,
-      cadastro.criadoEm,
-      cadastro.atcEmail,
-      cadastro.atcNome,
-      cadastro.canal,
-      cadastro.unidade,
-      cadastro.estado,
-      cadastro.categoria,
-      cadastro.produtoRef,
-      cadastro.produtoNomeLivre || "",
-      cadastro.unidadePotencial,
-      cadastro.implantado,
-      cadastro.potencialValor,
-      cadastro.concorrentes,
-      cadastro.observacao,
-    ]);
+    const sanitized = ativos.map((c) => ({ ...c, categorias: normalizeCategorias(c) }));
+    logDebug("syncAllCadastrosToSheets", "Enviando cadastros", { total: sanitized.length });
+    // Usar endpoint do servidor
+    const serverUrl = "http://localhost:3000/api/sheets/cadastros/bulk";
 
-    // Obter o número da próxima linha
-    const rowsRange = "CADASTROS!A:A";
-    const rowsUrl = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${rowsRange}?key=${config.apiKey}`;
-    const authHeaders = await getAuthHeaders();
-    const rowsRes = await fetch(rowsUrl, { headers: authHeaders });
-    const rowsData = await rowsRes.json();
-    const startRow = (rowsData.values?.length || 1) + 1;
-
-    // Escrever todos os cadastros em lote
-    const insertRange = `CADASTROS!A${startRow}:O${startRow + cadastros.length - 1}`;
-    const insertUrl = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${insertRange}?valueInputOption=RAW${config.apiKey ? `&key=${config.apiKey}` : ""}`;
-
-    const putResponse = await fetch(insertUrl, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ values: rows }),
+    const response = await fetch(serverUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ cadastros: sanitized }),
     });
 
-    if (!putResponse.ok) {
-      const text = await putResponse.text();
-      throw new Error(`HTTP error! status: ${putResponse.status} body: ${text}`);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
 
+    const result = await response.json();
+
+    logDebug("syncAllCadastrosToSheets", "Resultado", result);
     return {
-      success: true,
-      message: `${cadastros.length} cadastro(s) sincronizado(s) com sucesso`,
+      success: result.success,
+      message: result.message || `${cadastros.length} cadastro(s) sincronizado(s) com sucesso`,
     };
   } catch (error) {
     console.error("Erro ao sincronizar cadastros:", error);
@@ -757,7 +727,8 @@ export async function pullCadastrosFromSheets(): Promise<{
   }
 
   try {
-    const range = "CADASTROS!A2:O1000"; // Skip header
+    logDebug("pullCadastrosFromSheets", "Iniciando pull");
+    const range = "CADASTROS!A2:H1000"; // Skip header; col H = categorias JSON
     const url = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${range}?key=${config.apiKey}`;
     const headers = await getAuthHeaders();
     const response = await fetch(url, { headers });
@@ -769,28 +740,62 @@ export async function pullCadastrosFromSheets(): Promise<{
     const data = await response.json();
     
     // Parse cadastros using same logic as syncCadastrosFromSheets
-    const cadastros: Cadastro[] = (data.values || []).map((row: string[], i: number) => {
-      const offset = row.length > 1 && row[0] === "" ? 1 : 0;
-      return {
-        cadastroId: row[offset + 0] || "",
-        criadoEm: row[offset + 1] || new Date().toISOString(),
-        atcEmail: row[offset + 2] || "",
-        atcNome: row[offset + 3] || "",
-        canal: row[offset + 4] || "",
-        unidade: row[offset + 5] || "",
-        estado: row[offset + 6] || "",
-        categoria: row[offset + 7] || "",
-        produtoRef: row[offset + 8] || "",
-        produtoNomeLivre: row[offset + 9] || undefined,
-        nomeCliente: (row[offset + 9] || row[offset + 8] || "") as string,
-        unidadePotencial: (row[offset + 10] || "tons") as "tons" | "litros",
-        implantado: (row[offset + 11] || "Não") as "Sim" | "Não",
-        potencialValor: parseFloat(row[offset + 12]) || 0,
-        concorrentes: row[offset + 13] || "",
-        observacao: row[offset + 14] || "",
-      } as Cadastro;
-    }).filter((c: Cadastro) => c.cadastroId);
+    const cadastros: Cadastro[] = (data.values || [])
+      .map((row: string[]) => {
+        const offset = row.length > 1 && row[0] === "" ? 1 : 0;
 
+        const categoriasJson = row[offset + 7];
+        let categorias: any[] = [];
+
+        if (categoriasJson) {
+          try {
+            const parsed = JSON.parse(categoriasJson);
+            // Garantir migração de dados antigos durante o pull
+            categorias = parsed.map((cat: any) => ({
+              ...cat,
+              potencialAtingido: cat.potencialAtingido ?? (cat.implantado === "Sim" ? (cat.potencialValor || 0) : 0),
+              potencialTotal: cat.potencialTotal ?? (cat.potencialValor || 0),
+            }));
+          } catch (e) {
+            console.warn("[SheetsClient] Erro ao parsear categorias JSON", e);
+            categorias = [];
+          }
+        } else if (row.length >= offset + 15) {
+          // Fallback para formato antigo (uma categoria plana)
+          const potencialValor = parseFloat(row[offset + 12]) || 0;
+          const implantado = (row[offset + 11] || "Não") as any;
+          categorias = [
+            {
+              categoria: row[offset + 7] || "",
+              produtoRef: row[offset + 8] || "",
+              produtoNomeLivre: row[offset + 9] || "",
+              unidadePotencial: (row[offset + 10] || "tons") as any,
+              implantado: implantado,
+              safra: "Verão" as any,
+              // Converter formato antigo para novo
+              potencialAtingido: implantado === "Sim" ? potencialValor : 0,
+              potencialTotal: potencialValor,
+              concorrentes: row[offset + 13] || "",
+              observacao: row[offset + 14] || "",
+            },
+          ];
+        }
+
+        return {
+          cadastroId: row[offset + 0] || "",
+          criadoEm: row[offset + 1] || new Date().toISOString(),
+          atcEmail: row[offset + 2] || "",
+          atcNome: row[offset + 3] || "",
+          canal: row[offset + 4] || "",
+          unidade: row[offset + 5] || "",
+          estado: row[offset + 6] || "",
+          categorias,
+          deletado: false,
+        } as Cadastro;
+      })
+      .filter((c: Cadastro) => c.cadastroId);
+
+    logDebug("pullCadastrosFromSheets", "Pull concluído", { total: cadastros.length });
     return {
       success: true,
       cadastros,
@@ -804,6 +809,41 @@ export async function pullCadastrosFromSheets(): Promise<{
       message: "Erro ao baixar cadastros",
       error: String(error),
     };
+  }
+}
+
+/**
+ * Sincronizar concorrentes do Google Sheets
+ */
+export async function syncConcorrentesFromSheets(): Promise<string[]> {
+  const config = getConfig();
+  if (!config.spreadsheetId || !config.apiKey) {
+    console.warn("Google Sheets não configurado");
+    return [];
+  }
+
+  try {
+    const range = "CONCORRENTES!A2:A";
+    const url = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${range}?key=${config.apiKey}`;
+    
+    logDebug("syncConcorrentesFromSheets", "Fetching concorrentes");
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!data.values) {
+      console.warn("Nenhum concorrente encontrado no Sheets");
+      return [];
+    }
+
+    const concorrentes: string[] = data.values
+      .map((row: string[]) => row[0]?.trim())
+      .filter((conc: string) => conc);
+
+    logDebug("syncConcorrentesFromSheets", "Loaded concorrentes", { total: concorrentes.length });
+    return concorrentes;
+  } catch (error) {
+    console.error("Erro ao sincronizar concorrentes:", error);
+    return [];
   }
 }
 

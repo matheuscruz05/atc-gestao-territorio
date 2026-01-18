@@ -25,11 +25,11 @@ export function DashboardCard({
   };
 
   return (
-    <View className={`${colorClasses[color]} rounded-lg p-4 flex-1 min-h-24`}>
-      <Text className="text-white text-sm font-medium opacity-90">{title}</Text>
-      <Text className="text-white text-3xl font-bold mt-2">{value}</Text>
+    <View className={`${colorClasses[color]} rounded-lg p-2.5 flex-1 min-h-14`}>
+      <Text className="text-white text-xs font-semibold opacity-90">{title}</Text>
+      <Text className="text-white text-xl font-bold mt-0.5">{value}</Text>
       {subtitle && (
-        <Text className="text-white text-xs mt-2 opacity-75">{subtitle}</Text>
+        <Text className="text-white text-xs mt-0.5 opacity-75">{subtitle}</Text>
       )}
     </View>
   );

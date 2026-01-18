@@ -62,10 +62,10 @@ export default function LoginScreen() {
           />
           <View className="items-center">
             <Text className="text-3xl font-bold text-foreground">
-              Gestão de Território
+              Mosaic - Gestão de Território
             </Text>
             <Text className="text-base text-muted mt-2">
-              Sistema ATC
+              Time PR/SC
             </Text>
           </View>
         </View>

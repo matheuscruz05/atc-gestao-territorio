@@ -8,6 +8,7 @@ export interface Usuario {
   role: UserRole;
   senha: string;
   ativo: boolean;
+  gr?: string; // GR - Gerente Regional (opcional, pode não estar em todos os registros)
 }
 
 export type Categoria =
@@ -42,6 +43,24 @@ export interface Unidade {
 
 export type Implantado = "Sim" | "Não";
 
+export type Safra = "Verão" | "Inverno";
+
+// Dados de cada categoria dentro de um cadastro
+export interface CategoriaData {
+  categoria: Categoria;
+  produtoRef: string; // Ref PRODUTOS
+  produtoNomeLivre?: string; // Só para HIDROSSOLÚVEIS
+  unidadePotencial: UnidadePotencial; // Derivado de PRODUTO_REF
+  implantado: Implantado;
+  safra: Safra; // Verão ou Inverno
+  potencialAtingido: number; // Potencial que o produtor já utiliza
+  potencialTotal: number; // Potencial total da área
+  concorrentes: string;
+  observacao: string;
+  // Campo antigo mantido para compatibilidade
+  potencialValor?: number;
+}
+
 export interface Cadastro {
   cadastroId: string; // Key - UNIQUEID()
   criadoEm: string; // ISO date string
@@ -50,14 +69,20 @@ export interface Cadastro {
   canal: string; // Ref CANAIS
   unidade: string; // Ref UNIDADES
   estado: string; // UF
-  categoria: Categoria;
-  produtoRef: string; // Ref PRODUTOS
-  produtoNomeLivre?: string; // Só para HIDROSSOLÚVEIS
-  unidadePotencial: UnidadePotencial; // Derivado de PRODUTO_REF
-  implantado: Implantado;
-  potencialValor: number;
-  concorrentes: string;
-  observacao: string;
+  categorias: CategoriaData[]; // Array com 5 categorias
+  deletado?: boolean; // Marca cadastro como excluído (soft delete)
+  // Mantém campos antigos para compatibilidade com dados existentes
+  categoria?: Categoria;
+  produtoRef?: string;
+  produtoNomeLivre?: string;
+  unidadePotencial?: UnidadePotencial;
+  implantado?: Implantado;
+  safra?: Safra;
+  potencialValor?: number;
+  potencialAtingido?: number;
+  potencialTotal?: number;
+  concorrentes?: string;
+  observacao?: string;
 }
 
 // Estados brasileiros
@@ -92,7 +117,8 @@ export const PRODUTOS_CATALOGO: Omit<Produto, "ativo">[] = [
   { produtoId: "REFIRMA_CYBELION", categoria: "BIOLÓGICOS - FOLIARES", produto: "REFIRMA CYBELION", unidadePotencial: "litros" },
   
   // HIDROSSOLÚVEIS
-  { produtoId: "HIDRO_LIVRE", categoria: "HIDROSSOLÚVEIS", produto: "(LIVRE)", unidadePotencial: "litros" },
+  { produtoId: "NITRATO_CALCIO", categoria: "HIDROSSOLÚVEIS", produto: "NITRATO DE CÁLCIO", unidadePotencial: "litros" },
+  { produtoId: "MAP_PUTRIFICADO", categoria: "HIDROSSOLÚVEIS", produto: "MAP PUTRIFICADO", unidadePotencial: "litros" },
 ];
 
 export const CATEGORIAS: Categoria[] = [
