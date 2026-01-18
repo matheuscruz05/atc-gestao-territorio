@@ -59,34 +59,32 @@ export default function TabLayout() {
       />
 
       {/* Cadastros - apenas para COORD */}
-      {isCoord && (
-        <Tabs.Screen
-          name="cadastros"
-          options={{
-            title: "Cadastros",
-            tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="paperplane.fill" color={color} />
-            ),
-          }}
-        />
-      )} 
+      <Tabs.Screen
+        name="cadastros"
+        options={{
+          title: "Cadastros",
+          href: isCoord ? undefined : null,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="paperplane.fill" color={color} />
+          ),
+        }}
+      /> 
 
       {/* Admin - apenas para COORD */}
-      {isCoord && (
-        <Tabs.Screen
-          name="admin"
-          options={{
-            title: "Admin",
-            tabBarIcon: ({ color }) => (
-              <IconSymbol
-                size={28}
-                name="chevron.left.forwardslash.chevron.right"
-                color={color}
-              />
-            ),
-          }}
-        />
-      )} 
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: "Admin",
+          href: isCoord ? undefined : null,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol
+              size={28}
+              name="chevron.left.forwardslash.chevron.right"
+              color={color}
+            />
+          ),
+        }}
+      /> 
 
       {/* Dashboards - apenas para ATC */}
       {!isCoord && (
@@ -110,6 +108,15 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="house.fill" color={color} />
           ),
+        }}
+      />
+
+      {/* tab-utils - não deve aparecer como aba */}
+      <Tabs.Screen
+        name="tab-utils"
+        options={{
+          href: null,
+          title: "tab-utils",
         }}
       />
     </Tabs>
