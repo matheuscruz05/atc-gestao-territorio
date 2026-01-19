@@ -95,9 +95,9 @@ export default function LoginScreen() {
             <Text className="text-sm font-medium text-foreground mb-2">
               Senha
             </Text>
-            <View className="relative">
+            <View className="flex-row items-center bg-surface border border-border rounded-lg">
               <TextInput
-                className="bg-surface border border-border rounded-lg px-4 py-3 pr-12 text-foreground"
+                className="flex-1 px-4 py-3 text-foreground"
                 placeholder="••••••••"
                 placeholderTextColor={colors.muted}
                 value={senha}
@@ -109,7 +109,8 @@ export default function LoginScreen() {
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2"
+                className="px-3 py-3"
+                activeOpacity={0.6}
               >
                 <IconSymbol
                   size={20}
