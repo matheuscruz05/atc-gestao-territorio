@@ -19,7 +19,7 @@ import {
   generateUniqueId,
   getCadastros,
 } from "@/lib/storage";
-import { sendCadastroToSheets, syncConcorrentesFromSheets } from "@/lib/google-sheets-sync";
+import { sendCadastroToSheets, syncConcorrentesFromSheets, syncCadastrosFromSheets } from "@/lib/google-sheets-sync";
 import { useToast } from "@/lib/toast";
 import { enqueueCadastro } from "@/lib/sync-queue";
 import type {
@@ -119,8 +119,27 @@ export default function NovoCadastroScreen() {
     async function loadForEdit() {
       if (!editId) return;
       try {
-        const all = await getCadastros();
-        const found = all.find((c) => c.cadastroId === editId);
+        // Tentar buscar do Google Sheets primeiro (Vercel/web)
+        let found: Cadastro | undefined = undefined;
+        try {
+          const allFromSheets = await syncCadastrosFromSheets();
+          found = allFromSheets.find((c) => c.cadastroId === editId);
+          if (found) {
+            console.log(`✅ [Novo Cadastro] Cadastro carregado do Google Sheets: ${editId}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ [Novo Cadastro] Erro ao buscar do Sheets, tentando localStorage:`, error);
+        }
+        
+        // Fallback para localStorage se Sheets falhou
+        if (!found) {
+          const all = await getCadastros();
+          found = all.find((c) => c.cadastroId === editId);
+          if (found) {
+            console.log(`✅ [Novo Cadastro] Cadastro carregado do localStorage: ${editId}`);
+          }
+        }
+        
         if (found) {
           setCanal(found.canal);
           setUnidade(found.unidade);
@@ -231,6 +250,8 @@ export default function NovoCadastroScreen() {
         categorias: categoriasData,
         deletado: false, // Garantir que ao salvar/editar, o cadastro não está deletado
       };
+
+      console.log(`[Novo Cadastro] Salvando: isEditing=${isEditing}, editingId=${editingId}, novoId=${novoCadastro.cadastroId}`);
 
       // Salvar localmente
       await addCadastro(novoCadastro);
