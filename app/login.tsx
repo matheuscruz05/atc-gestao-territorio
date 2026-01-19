@@ -12,11 +12,13 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/lib/auth-context";
 import { useColors } from "@/hooks/use-colors";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const colors = useColors();
@@ -93,17 +95,29 @@ export default function LoginScreen() {
             <Text className="text-sm font-medium text-foreground mb-2">
               Senha
             </Text>
-            <TextInput
-              className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-              placeholder="••••••••"
-              placeholderTextColor={colors.muted}
-              value={senha}
-              onChangeText={setSenha}
-              secureTextEntry
-              editable={!isLoading}
-              returnKeyType="done"
-              onSubmitEditing={handleLogin}
-            />
+            <View className="relative">
+              <TextInput
+                className="bg-surface border border-border rounded-lg px-4 py-3 pr-12 text-foreground"
+                placeholder="••••••••"
+                placeholderTextColor={colors.muted}
+                value={senha}
+                onChangeText={setSenha}
+                secureTextEntry={!showPassword}
+                editable={!isLoading}
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2"
+              >
+                <IconSymbol
+                  size={20}
+                  name={showPassword ? "eye.fill" : "eye.slash.fill"}
+                  color={colors.muted}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity

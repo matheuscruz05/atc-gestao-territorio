@@ -316,7 +316,7 @@ export default function CadastrosScreen() {
                         <Text className="text-xs font-semibold text-muted">
                           📝 Observação:
                         </Text>
-                        <Text className="text-xs text-foreground bg-gray-900 rounded p-2 leading-relaxed">
+                        <Text className="text-xs text-foreground bg-surface rounded p-2 border border-border leading-relaxed">
                           {catData.observacao || "—"}
                         </Text>
                       </View>
