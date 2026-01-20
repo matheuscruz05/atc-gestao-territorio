@@ -127,14 +127,24 @@ export async function setCadastros(cadastros: Cadastro[]): Promise<void> {
 }
 
 export async function addCadastro(cadastro: Cadastro): Promise<void> {
+  console.log(`[Storage] 📝 addCadastro iniciado: cadastroId=${cadastro.cadastroId}`);
   const cadastros = await getCadastros();
+  console.log(`[Storage] 📋 Cadastros atuais: ${cadastros.length} total`);
+  
   const index = cadastros.findIndex((c) => c.cadastroId === cadastro.cadastroId);
+  console.log(`[Storage] 🔍 Procurando cadastro ${cadastro.cadastroId}... índice=${index}`);
+  
   if (index >= 0) {
+    console.log(`[Storage] ♻️  Atualizando cadastro no índice ${index}`);
     cadastros[index] = cadastro;
   } else {
+    console.log(`[Storage] ➕ Adicionando novo cadastro`);
     cadastros.push(cadastro);
   }
+  
+  console.log(`[Storage] 💾 Salvando ${cadastros.length} cadastros em AsyncStorage...`);
   await setCadastros(cadastros);
+  console.log(`[Storage] ✅ addCadastro concluído com sucesso!`);
 }
 
 // Usuário atual

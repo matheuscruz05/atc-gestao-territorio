@@ -42,8 +42,9 @@ import { TopPerformerCard } from "@/components/top-performer-card";
 import { DashboardList } from "@/components/dashboard-list";
 import { useToast } from "@/lib/toast";
 import { Picker } from "@react-native-picker/picker";
+import TimelineCoordScreen from "./timeline";
 
-type Tab = "dashboard" | "usuarios" | "produtos" | "canais" | "unidades" | "cadastros";
+type Tab = "dashboard" | "usuarios" | "produtos" | "canais" | "unidades" | "cadastros" | "timeline";
 
 export default function AdminScreen() {
   const { isCoord } = useAuth();
@@ -1579,8 +1580,19 @@ export default function AdminScreen() {
               {cadastro.atcNome}
             </Text>
             <Text className="text-xs text-gray-400 mt-0.5">
-              {cadastro.criadoEm ? new Date(cadastro.criadoEm).toLocaleDateString("pt-BR") : "Data desconhecida"}
+              criado: {cadastro.criadoEm ? new Date(cadastro.criadoEm).toLocaleDateString("pt-BR") : "Data desconhecida"}
             </Text>
+            {cadastro.editadoEm && (
+              <Text className="text-xs text-cyan-300 mt-0.5">
+                editado: {new Date(cadastro.editadoEm).toLocaleString("pt-BR", { 
+                  day: '2-digit', 
+                  month: '2-digit', 
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit' 
+                })}
+              </Text>
+            )}
           </View>
 
           {/* Resumo de Potenciais */}
@@ -1912,7 +1924,7 @@ export default function AdminScreen() {
 
             {/* Ícones de Guias - Linha Compacta */}
             <View className="flex-row gap-1.5 ml-4">
-              {(["dashboard", "usuarios", "produtos", "canais", "unidades", "cadastros"] as Tab[]).map((tab) => {
+              {(["dashboard", "usuarios", "produtos", "canais", "unidades", "cadastros", "timeline"] as Tab[]).map((tab) => {
                 const tabLabels: Record<Tab, string> = {
                   dashboard: "📊",
                   usuarios: "👥",
@@ -1920,6 +1932,7 @@ export default function AdminScreen() {
                   canais: "🛣️",
                   unidades: "🏢",
                   cadastros: "📋",
+                  timeline: "📈",
                 };
                 return (
                   <TouchableOpacity
@@ -1943,7 +1956,7 @@ export default function AdminScreen() {
         </View>
 
         {/* Header da Tab Ativa - Intuitivo e Visual */}
-        {!isLoading && (
+        {!isLoading && activeTab !== "timeline" && (
           <View className="bg-surface border-b border-border px-6 py-3">
             <Text className="text-sm text-muted">Você está em:</Text>
             <Text className="text-xl font-bold text-foreground mt-1">
@@ -1968,7 +1981,9 @@ export default function AdminScreen() {
             <ActivityIndicator size="large" color={colors.primary} />
             <Text className="text-muted mt-4">Carregando dados...</Text>
           </View>
-        ) : (
+          ) : activeTab === "timeline" ? (
+            <TimelineCoordScreen />
+          ) : (
           <ScrollView className="flex-1 px-6" refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}>
             {/* Botões Sync/Pull - Elegantes e Compactos no Topo */}
             {activeTab === "dashboard" && (

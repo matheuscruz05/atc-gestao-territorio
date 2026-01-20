@@ -64,7 +64,7 @@ export default function LoginScreen() {
           />
           <View className="items-center">
             <Text className="text-3xl font-bold text-foreground">
-              Mosaic - Gestão de Território
+              Gestão de Território Mosaic
             </Text>
             <Text className="text-base text-muted mt-2">
               Time PR/SC

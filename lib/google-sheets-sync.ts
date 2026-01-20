@@ -25,6 +25,7 @@ import type {
   Unidade,
   Cadastro,
 } from "@/types/models";
+import { getApiBaseUrl } from "@/constants/oauth";
 
 // Configuração (deve vir de variáveis de ambiente)
 // Usar getters para avaliar em tempo de execução
@@ -540,6 +541,7 @@ export async function sendCadastroToSheets(
 ): Promise<SyncResult> {
   const config = getConfig();
   if (!config.spreadsheetId || !config.apiKey) {
+    console.error("[sendCadastro] ❌ Google Sheets não configurado");
     return {
       success: false,
       message: "Google Sheets não configurado",
@@ -548,10 +550,22 @@ export async function sendCadastroToSheets(
   }
 
   try {
+    console.log("\n========== 🌐 SINCRONIZANDO COM GOOGLE SHEETS ==========");
     logDebug("sendCadastro", "Enviando cadastro", { id: cadastro.cadastroId });
+    console.log(`[sendCadastro] 📦 cadastroId: ${cadastro.cadastroId}`);
+    console.log(`[sendCadastro] 📝 canal: ${cadastro.canal}`);
+    console.log(`[sendCadastro] 📝 unidade: ${cadastro.unidade}`);
+    console.log(`[sendCadastro] 📝 atcEmail: ${cadastro.atcEmail}`);
+    
     const categorias = normalizeCategorias(cadastro);
-    // Usar endpoint do servidor em vez de chamar Google Sheets diretamente
-    const serverUrl = "http://localhost:3000/api/sheets/cadastros";
+    console.log(`[sendCadastro] ✅ Categorias normalizadas: ${categorias.length}`);
+    
+    // Usar endpoint do servidor com URL base correta
+    // Em desenvolvimento: localhost:3000 (Vercel local)
+    // Em produção: https://seu-dominio.vercel.app
+    const apiBaseUrl = getApiBaseUrl();
+    const serverUrl = apiBaseUrl ? `${apiBaseUrl}/api/sheets/create-or-update` : "/api/sheets/create-or-update";
+    console.log(`[sendCadastro] 🚀 POST para ${serverUrl} (base: ${apiBaseUrl || "relativa"})`);
 
     const response = await fetch(serverUrl, {
       method: "POST",
@@ -561,20 +575,26 @@ export async function sendCadastroToSheets(
       body: JSON.stringify({ ...cadastro, categorias }),
     });
 
+    console.log(`[sendCadastro] 📡 Response status: ${response.status}`);
+
     if (!response.ok) {
       const error = await response.json();
+      console.error(`[sendCadastro] ❌ HTTP error! status: ${response.status}`, error);
       throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
 
     const result = await response.json();
+    console.log(`[sendCadastro] ✅ Resposta do servidor:`, result);
 
     logDebug("sendCadastro", "Resultado", result);
+    console.log("========== ✅ GOOGLE SHEETS SINCRONIZAÇÃO CONCLUÍDA ==========");
+    
     return {
       success: result.success,
       message: result.message || "Cadastro sincronizado com sucesso",
     };
   } catch (error) {
-    console.error("Erro ao enviar cadastro:", error);
+    console.error("[sendCadastro] ❌ ERRO ao enviar cadastro:", error);
     return {
       success: false,
       message: "Erro ao sincronizar cadastro",
@@ -624,8 +644,11 @@ export async function deleteCadastroFromSheets(
 
   try {
     logDebug("deleteCadastro", "Deletando cadastro", { cadastroId });
-    // Usar URL relativa que funciona em Vercel e localhost
-    const serverUrl = `/api/sheets/cadastros/${encodeURIComponent(cadastroId)}`;
+    // Usar endpoint do servidor com URL base correta
+    const apiBaseUrl = getApiBaseUrl();
+    const serverUrl = apiBaseUrl 
+      ? `${apiBaseUrl}/api/sheets/cadastros/${encodeURIComponent(cadastroId)}`
+      : `/api/sheets/cadastros/${encodeURIComponent(cadastroId)}`;
 
     const response = await fetch(serverUrl, {
       method: "DELETE",
@@ -674,7 +697,7 @@ export async function syncAllCadastrosToSheets(
     const sanitized = ativos.map((c) => ({ ...c, categorias: normalizeCategorias(c) }));
     logDebug("syncAllCadastrosToSheets", "Enviando cadastros", { total: sanitized.length });
     // Usar endpoint do servidor
-    const serverUrl = "http://localhost:3000/api/sheets/cadastros/bulk";
+    const serverUrl = "/api/sheets/cadastros/bulk";
 
     const response = await fetch(serverUrl, {
       method: "POST",

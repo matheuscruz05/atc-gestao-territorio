@@ -284,7 +284,7 @@ export default function HomeScreen() {
     return () => unsub && unsub();
   }, [migrateHidrosoluveis, loadCadastros]);
 
-  // Filtrar por busca - por Canal, Unidade, Estado ou ID
+  // Filtrar por busca - por Canal, Unidade, Estado, ATC ou ID
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredCadastros(cadastros);
@@ -304,6 +304,9 @@ export default function HomeScreen() {
       
       // Buscar por Estado (opcional)
       if (c.estado && c.estado.toLowerCase().includes(query)) return true;
+      
+      // Buscar por ATC (nome)
+      if (c.atcNome && c.atcNome.toLowerCase().includes(query)) return true;
       
       return false;
     });
@@ -372,6 +375,13 @@ export default function HomeScreen() {
 
     const potenciais = calcularTotaisPotencial();
     const createdDate = item.criadoEm ? new Date(item.criadoEm).toLocaleDateString("pt-BR") : "Data desconhecida";
+    const editedDate = item.editadoEm ? new Date(item.editadoEm).toLocaleString("pt-BR", { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit' 
+    }) : null;
 
     // Agrupar categorias por tipo
     const agruparCategoriasPorTipo = (categorias: CategoriaData[]) => {
@@ -480,15 +490,21 @@ export default function HomeScreen() {
             {item.atcNome}
           </Text>
           <Text className="text-xs text-gray-400 mt-0.5">
-            {createdDate}
+            criado: {createdDate}
           </Text>
+          {editedDate && (
+            <Text className="text-xs text-cyan-300 mt-0.5">
+              editado: {editedDate}
+            </Text>
+          )}
         </View>
 
         {hasNewFormat ? (
           <View className="p-3 gap-2">
-            {/* Resumo de Potenciais + Botão Editar */}
-            <View className="flex-row items-center justify-between gap-2 mb-1">
-              <View className="flex-row gap-3">
+            {/* Resumo de Potenciais + Botões na mesma linha */}
+            <View className="flex-row items-center justify-between gap-1.5 mb-1">
+              {/* Potenciais */}
+              <View className="flex-row gap-2">
                 <View className="bg-blue-500 bg-opacity-20 px-2 py-1 rounded border border-blue-500 border-opacity-30">
                   <Text className="text-xs font-bold text-blue-400">
                     {potenciais.tons.real.toFixed(0)}t
@@ -502,18 +518,51 @@ export default function HomeScreen() {
                   </View>
                 )}
               </View>
-              <TouchableOpacity
-                className="bg-gradient-to-r from-cyan-500 to-blue-500 py-1.5 px-3 rounded active:opacity-80"
-                onPress={() =>
-                  router.push({
-                    pathname: "/novo-cadastro",
-                    params: { editId: item.cadastroId },
-                  } as any)
-                }
-                activeOpacity={0.8}
-              >
-                <Text className="text-white font-semibold text-xs">✏️ Editar</Text>
-              </TouchableOpacity>
+
+              {/* Botões compactos */}
+              <View className="flex-row gap-1">
+                <TouchableOpacity
+                  className="bg-blue-600 rounded px-2.5 py-1 items-center justify-center active:opacity-80"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/novo-cadastro",
+                      params: { editId: item.cadastroId },
+                    } as any)
+                  }
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-white font-semibold text-[10px]">✏️ Editar</Text>
+                </TouchableOpacity>
+
+                {isCoord && (
+                  <TouchableOpacity
+                    className="bg-red-600 rounded px-2.5 py-1 items-center justify-center active:opacity-80"
+                    onPress={async () => {
+                      const { confirmAction } = await import("@/lib/confirm");
+                      const { deleteCadastroFromSheets } = await import("@/lib/google-sheets-sync");
+                      
+                      const confirmed = await confirmAction(`Excluir ${item.canal}?`, "Excluir");
+                      if (!confirmed) return;
+
+                      try {
+                        const updated = cadastros.map((c) =>
+                          c.cadastroId === item.cadastroId
+                            ? { ...c, deletado: true }
+                            : c
+                        );
+                        await setCadastros(updated);
+                        await deleteCadastroFromSheets(item.cadastroId);
+                        loadCadastros();
+                      } catch (e) {
+                        console.error("Erro ao excluir:", e);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text className="text-white font-semibold text-[10px]">🗑️ Excluir</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {/* Linha divisória */}
@@ -626,7 +675,7 @@ export default function HomeScreen() {
           {/* Busca */}
           <TextInput
             className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-            placeholder="Buscar por ID, canal, unidade..."
+            placeholder={isCoord ? "Buscar por ID, canal, unidade ou ATC..." : "Buscar por ID, canal, unidade..."}
             placeholderTextColor={colors.muted}
             value={searchQuery}
             onChangeText={setSearchQuery}

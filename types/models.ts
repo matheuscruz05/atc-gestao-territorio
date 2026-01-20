@@ -61,6 +61,23 @@ export interface CategoriaData {
   potencialValor?: number;
 }
 
+// Snapshot de potenciais em uma data específica
+export interface PotencialSnapshot {
+  data: string; // ISO date string
+  categoria: Categoria;
+  produtoRef: string;
+  produtoNomeLivre?: string;
+  potencialAtingido: number;
+  potencialTotal: number;
+  safra: Safra;
+}
+
+// Histórico de edições do cadastro
+export interface HistoricoEdicao {
+  editadoEm: string; // ISO date string
+  snapshots: PotencialSnapshot[]; // Snapshot de todos os potenciais naquele momento
+}
+
 export interface Cadastro {
   cadastroId: string; // Key - UNIQUEID()
   criadoEm: string; // ISO date string
@@ -71,6 +88,8 @@ export interface Cadastro {
   estado: string; // UF
   categorias: CategoriaData[]; // Array com 5 categorias
   deletado?: boolean; // Marca cadastro como excluído (soft delete)
+  editadoEm?: string; // Data da última edição (ISO date string)
+  historico?: HistoricoEdicao[]; // Array com histórico de todas as edições
   // Mantém campos antigos para compatibilidade com dados existentes
   categoria?: Categoria;
   produtoRef?: string;

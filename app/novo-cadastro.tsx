@@ -28,6 +28,8 @@ import type {
   Categoria,
   Implantado,
   Cadastro,
+  PotencialSnapshot,
+  HistoricoEdicao,
   CategoriaData,
 } from "@/types/models";
 import { CATEGORIAS } from "@/types/models";
@@ -61,6 +63,8 @@ export default function NovoCadastroScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [originalCreatedEm, setOriginalCreatedEm] = useState<string | null>(null);
+  const [originalAtcEmail, setOriginalAtcEmail] = useState<string | null>(null);
+  const [originalAtcNome, setOriginalAtcNome] = useState<string | null>(null);
 
   const params = useLocalSearchParams();
   const editId = (params as any)?.editId as string | undefined;
@@ -144,6 +148,8 @@ export default function NovoCadastroScreen() {
           setCanal(found.canal);
           setUnidade(found.unidade);
           setEstado(found.estado);
+          setOriginalAtcEmail(found.atcEmail);
+          setOriginalAtcNome(found.atcNome);
           
           // Se tem categorias (novo formato)
           if (found.categorias && found.categorias.length > 0) {
@@ -220,6 +226,16 @@ export default function NovoCadastroScreen() {
 
   // Validar e salvar
   const handleSalvar = async () => {
+    console.log("\n========== 🚀 INICIANDO SALVAMENTO ==========");
+    
+    // Verificar se user está definido
+    if (!user) {
+      console.error("[Novo Cadastro] ❌ ERRO CRÍTICO: user é undefined!");
+      Alert.alert("Erro Crítico", "Usuário não identificado. Faça login novamente.");
+      return;
+    }
+    console.log(`[Novo Cadastro] 👤 Usuário: ${user.nome} (${user.email}) - Role: ${user.role}`);
+    
     // Validações apenas dos campos essenciais: Canal, Unidade e Estado
     if (!canal) {
       Alert.alert("Erro", "Selecione um canal");
@@ -239,25 +255,93 @@ export default function NovoCadastroScreen() {
 
     setIsLoading(true);
     try {
+      const now = new Date().toISOString();
+      console.log(`[Novo Cadastro] ⏰ Timestamp atual: ${now}`);
+      
+      // Criar snapshot dos potenciais atuais
+      const snapshots: PotencialSnapshot[] = categoriasData
+        .filter((cat) => cat.produtoRef || cat.produtoNomeLivre) // Só incluir categorias com produto definido
+        .map((cat) => ({
+          data: now,
+          categoria: cat.categoria,
+          produtoRef: cat.produtoRef,
+          produtoNomeLivre: cat.produtoNomeLivre,
+          potencialAtingido: cat.potencialAtingido,
+          potencialTotal: cat.potencialTotal,
+          safra: cat.safra,
+        }));
+      
+      console.log(`[Novo Cadastro] 📸 Snapshots criados: ${snapshots.length}`);
+
+      // Se está editando, adicionar ao histórico
+      let historico: HistoricoEdicao[] = [];
+      if (isEditing && editingId) {
+        console.log(`[Novo Cadastro] ✏️  MODO EDIÇÃO: editingId=${editingId}`);
+        // Buscar histórico existente do cadastro
+        const cadastrosAtuais = await getCadastros();
+        console.log(`[Novo Cadastro] 📚 Total de cadastros em localStorage: ${cadastrosAtuais.length}`);
+        const cadastroExistente = cadastrosAtuais.find((c) => c.cadastroId === editingId);
+        
+        if (cadastroExistente) {
+          console.log(`[Novo Cadastro] ✅ Cadastro existente encontrado!`);
+          historico = cadastroExistente.historico || [];
+          console.log(`[Novo Cadastro] 📖 Histórico anterior: ${historico.length} registros`);
+          // Adicionar novo snapshot ao histórico
+          historico.push({
+            editadoEm: now,
+            snapshots,
+          });
+          console.log(`[Novo Cadastro] 📖 Histórico atualizado: ${historico.length} registros`);
+        } else {
+          console.warn(`[Novo Cadastro] ⚠️  Cadastro NÃO encontrado em localStorage! Criar novo histórico`);
+          historico = [{
+            editadoEm: now,
+            snapshots,
+          }];
+        }
+      } else {
+        console.log(`[Novo Cadastro] ➕ MODO NOVO CADASTRO`);
+        // Novo cadastro - criar primeiro snapshot
+        historico = [{
+          editadoEm: now,
+          snapshots,
+        }];
+        console.log(`[Novo Cadastro] 📖 Histórico criado: 1 registro`);
+      }
+
       const novoCadastro: Cadastro = {
         cadastroId: isEditing && editingId ? editingId : generateUniqueId(),
-        criadoEm: isEditing && originalCreatedEm ? originalCreatedEm : new Date().toISOString(),
-        atcEmail: user!.email,
-        atcNome: user!.nome,
+        criadoEm: isEditing && originalCreatedEm ? originalCreatedEm : now,
+        atcEmail: isEditing && user?.role === "COORD" && originalAtcEmail ? originalAtcEmail : user!.email,
+        atcNome: isEditing && user?.role === "COORD" && originalAtcNome ? originalAtcNome : user!.nome,
         canal,
         unidade: unidade.trim(),
         estado,
         categorias: categoriasData,
-        deletado: false, // Garantir que ao salvar/editar, o cadastro não está deletado
+        deletado: false,
+        editadoEm: isEditing ? now : undefined, // Só marca editadoEm se for edição
+        historico, // Salvar histórico completo
       };
 
-      console.log(`[Novo Cadastro] Salvando: isEditing=${isEditing}, editingId=${editingId}, novoId=${novoCadastro.cadastroId}`);
+      console.log(`[Novo Cadastro] 📦 Objeto cadastro criado:`);
+      console.log(`  - cadastroId: ${novoCadastro.cadastroId}`);
+      console.log(`  - canal: ${novoCadastro.canal}`);
+      console.log(`  - unidade: ${novoCadastro.unidade}`);
+      console.log(`  - atcEmail: ${novoCadastro.atcEmail}`);
+      console.log(`  - atcNome: ${novoCadastro.atcNome}`);
+      console.log(`  - categorias: ${novoCadastro.categorias.length}`);
+      console.log(`  - historico: ${novoCadastro.historico.length}`);
+      console.log(`  - editadoEm: ${novoCadastro.editadoEm}`);
 
       // Salvar localmente
+      console.log(`[Novo Cadastro] 💾 Iniciando salvar em AsyncStorage...`);
       await addCadastro(novoCadastro);
+      console.log(`[Novo Cadastro] ✅ Salvo em AsyncStorage com sucesso!`);
 
       // Tentar sincronizar com Google Sheets
+      console.log(`[Novo Cadastro] 🌐 Iniciando sincronização com Google Sheets...`);
       const syncResult = await sendCadastroToSheets(novoCadastro);
+      console.log(`[Novo Cadastro] Resultado da sincronização:`, syncResult);
 
       if (syncResult.success) {
         const title = isEditing ? "✅ Cadastro Atualizado" : "✅ Sucesso";
@@ -265,20 +349,37 @@ export default function NovoCadastroScreen() {
           ? "Cadastro atualizado e sincronizado com Google Sheets!"
           : "Cadastro salvo e sincronizado com Google Sheets!";
 
+        console.log(`[Novo Cadastro] 🎉 ${title}`);
         toast.show("success", title, message);
+        
+        // Se foi edição, sincronizar dados do Sheets para garantir que tudo está atualizado
+        if (isEditing) {
+          console.log(`[Novo Cadastro] 🔄 Recarregando dados do Google Sheets após edição...`);
+          try {
+            await syncCadastrosFromSheets();
+            console.log("[Novo Cadastro] ✅ Sincronização de cadastros após edição concluída");
+          } catch (e) {
+            console.warn("[Novo Cadastro] ⚠️  Erro ao sincronizar cadastros após edição:", e);
+          }
+        }
+        
         setTimeout(() => router.back(), 600);
       } else {
         // Enfileirar para retry em segundo plano
+        console.warn(`[Novo Cadastro] ⚠️  Sincronização falhou! Enfileirando para retry...`);
         await enqueueCadastro(novoCadastro);
         const title = isEditing ? "⚠️ Cadastro Atualizado" : "⚠️ Cadastro Salvo";
         const message =
           (isEditing ? "Dados atualizados localmente." : "Dados salvos localmente.") +
           " Sincronização pendente — será tentada automaticamente.";
 
+        console.log(`[Novo Cadastro] ${title}`);
         toast.show("info", title, message);
         setTimeout(() => router.back(), 600);
       }
+      console.log("========== ✅ SALVAMENTO CONCLUÍDO ==========");
     } catch (error) {
+      console.error("[Novo Cadastro] ❌ ERRO NO SALVAMENTO:", error);
       Alert.alert("Erro", "Ocorreu um erro ao salvar o cadastro");
     } finally {
       setIsLoading(false);

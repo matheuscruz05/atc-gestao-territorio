@@ -100,6 +100,18 @@ export default function TabLayout() {
         />
       )}
 
+      {/* Timeline - visível para ATC, oculto para COORD (que acessa via Admin) */}
+      <Tabs.Screen
+        name="timeline"
+        options={{
+          href: !isCoord ? undefined : null,
+          title: "📈 Timeline",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="chart.line.uptrend.xyaxis" color={color} />
+          ),
+        }}
+      />
+
       {/* Perfil - todos */}
       <Tabs.Screen
         name="perfil"

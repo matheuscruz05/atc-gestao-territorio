@@ -542,23 +542,36 @@ export default function DashboardsScreen() {
             </View>
           </View>
 
-          {/* Buscar por ID, Canal, Unidade ou ATC */}
-          <View>
-            <Text className="text-sm font-medium text-foreground mb-2">🔍 Buscar (ID, Canal, Unidade, ATC)</Text>
-            <View className="flex-row items-center gap-2">
-              <View className="bg-primary px-2 py-1 rounded-full">
-                <Text className="text-[10px] font-semibold text-white">ATC</Text>
+          {/* Buscar por ID, Canal, Unidade ou ATC - APENAS PARA COORD */}
+          {user?.role === "COORD" && (
+            <View>
+              <Text className="text-sm font-bold text-foreground mb-2">🔍 Busca Avançada</Text>
+              <View className="bg-surface border-2 border-primary/20 rounded-xl p-3 shadow-sm">
+                <View className="flex-row items-center gap-2 mb-1.5">
+                  <View className="bg-gradient-to-r from-blue-600 to-blue-700 px-3 py-1.5 rounded-full shadow-sm">
+                    <Text className="text-xs font-bold text-white">ID</Text>
+                  </View>
+                  <View className="bg-gradient-to-r from-green-600 to-green-700 px-3 py-1.5 rounded-full shadow-sm">
+                    <Text className="text-xs font-bold text-white">CANAL</Text>
+                  </View>
+                  <View className="bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-1.5 rounded-full shadow-sm">
+                    <Text className="text-xs font-bold text-white">UNIDADE</Text>
+                  </View>
+                  <View className="bg-gradient-to-r from-orange-600 to-orange-700 px-3 py-1.5 rounded-full shadow-sm">
+                    <Text className="text-xs font-bold text-white">ATC</Text>
+                  </View>
+                </View>
+                <TextInput
+                  placeholder="Digite para buscar por ID, canal, unidade ou nome do ATC..."
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  placeholderTextColor={colors.muted}
+                  className="bg-background border border-border rounded-lg px-4 py-3 text-foreground text-sm"
+                  style={{ color: colors.foreground }}
+                />
               </View>
-              <TextInput
-                placeholder="Buscar por ID, canal, unidade ou ATC..."
-                value={searchText}
-                onChangeText={setSearchText}
-                placeholderTextColor={colors.muted}
-                className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-foreground"
-                style={{ color: colors.foreground }}
-              />
             </View>
-          </View>
+          )}
         </View>
 
         {/* KPIs Principais */}
@@ -660,14 +673,15 @@ export default function DashboardsScreen() {
           />
         </View>
 
-        {/* Lista de cadastros (com busca incluindo ATC) */}
-        <View className="mb-6">
-          <View className="flex-row items-center justify-between mb-2">
-            <Text className="text-lg font-bold text-foreground">📋 Cadastros</Text>
-            <Text className="text-xs text-muted">{cadastrosFiltrados.length} cadastro(s)</Text>
-          </View>
+        {/* Lista de cadastros (com busca incluindo ATC) - APENAS PARA COORD */}
+        {user?.role === "COORD" && (
+          <View className="mb-6">
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-lg font-bold text-foreground">📋 Cadastros</Text>
+              <Text className="text-xs text-muted">{cadastrosFiltrados.length} cadastro(s)</Text>
+            </View>
 
-          {cadastrosFiltrados.map((cadastro) => {
+            {cadastrosFiltrados.map((cadastro) => {
             const realPot = cadastro.categorias?.[0]?.potencialAtingido || 0;
             const totalPot = cadastro.categorias?.[0]?.potencialTotal || 0;
             const unidade = cadastro.categorias?.[0]?.unidadePotencial || "tons";
@@ -712,20 +726,23 @@ export default function DashboardsScreen() {
                 </View>
 
                 {/* Botões Compactos */}
-                <View className="flex-row gap-1.5 border-t border-border p-2">
+                <View className="flex-row gap-2 border-t border-border p-3">
                   <TouchableOpacity
-                    className="flex-1 bg-primary rounded py-1.5 items-center active:opacity-80"
+                    className="flex-1 bg-blue-600 rounded-lg py-2.5 items-center justify-center active:opacity-80 shadow-sm"
                     onPress={() => {
                       console.log("[Dashboard] Editar cadastro", cadastro.cadastroId);
                       router.push(`/novo-cadastro?editId=${encodeURIComponent(cadastro.cadastroId)}` as any);
                     }}
-                    activeOpacity={0.8}
+                    activeOpacity={0.7}
                   >
-                    <Text className="text-white text-xs font-semibold">✏️ Editar</Text>
+                    <View className="flex-row items-center gap-1.5">
+                      <Text className="text-base">✏️</Text>
+                      <Text className="text-white text-sm font-bold">Editar</Text>
+                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    className="flex-1 bg-error rounded py-1.5 items-center active:opacity-80"
+                    className="flex-1 bg-red-600 rounded-lg py-2.5 items-center justify-center active:opacity-80 shadow-sm"
                     onPress={async () => {
                       const confirmed = await confirmAction(`Excluir ${cadastro.canal}?`, "Excluir");
                       if (!confirmed) return;
@@ -745,24 +762,28 @@ export default function DashboardsScreen() {
                         toast.show("error", "❌ Erro", String(e));
                       }
                     }}
-                    activeOpacity={0.8}
+                    activeOpacity={0.7}
                   >
-                    <Text className="text-white text-xs font-semibold">🗑️ Excluir</Text>
+                    <View className="flex-row items-center gap-1.5">
+                      <Text className="text-base">🗑️</Text>
+                      <Text className="text-white text-sm font-bold">Excluir</Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               </View>
             );
           })}
 
-          {cadastrosFiltrados.length === 0 && (
-            <View className="bg-surface border border-border rounded-lg p-4">
-              <Text className="text-sm text-muted text-center">
-                Nenhum cadastro encontrado{normalizedSearch ? ` para "${searchText}"` : ""}
-              </Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-    </ScreenContainer>
-  );
-}
+            {cadastrosFiltrados.length === 0 && (
+              <View className="bg-surface border border-border rounded-lg p-4">
+                <Text className="text-sm text-muted text-center">
+                  Nenhum cadastro encontrado{normalizedSearch ? ` para "${searchText}"` : ""}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+        </ScrollView>
+      </ScreenContainer>
+    );
+  }
