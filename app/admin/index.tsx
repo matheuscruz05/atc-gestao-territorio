@@ -611,7 +611,7 @@ export default function AdminScreen() {
         <View className="flex-row gap-1.5">
           <DashboardCard title="Total Cadastros" value={cadastros.length} />
           <DashboardCard title="Potencial Real (tons)" value={potencialRealTons.toFixed(2)} color="success" />
-          <DashboardCard title="Potencial Real (litros)" value={potencialRealLitros.toFixed(2)} color="success" />
+          <DashboardCard title="Potencial Real (litros)" value={potencialRealLitros.toFixed(2)} color="warning" />
         </View>
 
         {/* Top Performers - mostrado apenas quando um produto está selecionado */}

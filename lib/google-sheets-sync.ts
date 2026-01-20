@@ -624,8 +624,8 @@ export async function deleteCadastroFromSheets(
 
   try {
     logDebug("deleteCadastro", "Deletando cadastro", { cadastroId });
-    // Usar endpoint do servidor
-    const serverUrl = `http://localhost:3000/api/sheets/cadastros/${cadastroId}`;
+    // Usar URL relativa que funciona em Vercel e localhost
+    const serverUrl = `/api/sheets/cadastros/${encodeURIComponent(cadastroId)}`;
 
     const response = await fetch(serverUrl, {
       method: "DELETE",
