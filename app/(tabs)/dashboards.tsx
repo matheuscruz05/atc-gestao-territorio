@@ -28,7 +28,7 @@ export default function DashboardsScreen() {
   const [selectedProduto, setSelectedProduto] = useState<string>("TODOS");
   const [selectedImplantado, setSelectedImplantado] = useState<Implantado | "TODOS">("TODOS");
   const [selectedSafra, setSelectedSafra] = useState<"TODAS" | "Verão" | "Inverno">("TODAS");
-  const [searchAtc, setSearchAtc] = useState<string>("");
+  const [searchText, setSearchText] = useState<string>("");
 
   // Helper: Converter cadastro antigo para novo formato
   const normalizeToNewFormat = (cadastro: Cadastro): Cadastro => {
@@ -325,6 +325,22 @@ export default function DashboardsScreen() {
     }))
     .sort((a, b) => b.value - a.value);
 
+  // Lista de cadastros filtrados pela busca (ID, canal, unidade ou ATC)
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const cadastrosFiltrados = cadastros.filter((c) => {
+    if (c.deletado) return false;
+    if (!normalizedSearch) return true;
+    const haystack = [
+      c.cadastroId,
+      c.canal,
+      c.unidade,
+      c.atcNome,
+    ]
+      .filter(Boolean)
+      .map((s) => String(s).toLowerCase());
+    return haystack.some((value) => value.includes(normalizedSearch));
+  });
+
   // KPI: Concorrentes - mostra os principais concorrentes do produto selecionado
   let concorrentesMap: Record<string, number> = {};
   if (selectedProduto !== "TODOS") {
@@ -526,17 +542,22 @@ export default function DashboardsScreen() {
             </View>
           </View>
 
-          {/* Buscar por ATC */}
+          {/* Buscar por ID, Canal, Unidade ou ATC */}
           <View>
-            <Text className="text-sm font-medium text-foreground mb-2">🔍 Buscar por ATC</Text>
-            <TextInput
-              placeholder="Digite o nome do ATC..."
-              value={searchAtc}
-              onChangeText={setSearchAtc}
-              placeholderTextColor={colors.muted}
-              className="bg-surface border border-border rounded-lg px-3 py-2 text-foreground"
-              style={{ color: colors.foreground }}
-            />
+            <Text className="text-sm font-medium text-foreground mb-2">🔍 Buscar (ID, Canal, Unidade, ATC)</Text>
+            <View className="flex-row items-center gap-2">
+              <View className="bg-primary px-2 py-1 rounded-full">
+                <Text className="text-[10px] font-semibold text-white">ATC</Text>
+              </View>
+              <TextInput
+                placeholder="Buscar por ID, canal, unidade ou ATC..."
+                value={searchText}
+                onChangeText={setSearchText}
+                placeholderTextColor={colors.muted}
+                className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-foreground"
+                style={{ color: colors.foreground }}
+              />
+            </View>
           </View>
         </View>
 
@@ -639,107 +660,108 @@ export default function DashboardsScreen() {
           />
         </View>
 
-        {/* Cadastros com Busca por ATC */}
-        {searchAtc.trim().length > 0 && (
-          <View className="mb-6">
-            <Text className="text-lg font-bold text-foreground mb-3">📋 Cadastros - ATC: {searchAtc}</Text>
-            {cadastros
-              .filter(c => !c.deletado && c.atcNome?.toLowerCase().includes(searchAtc.toLowerCase()))
-              .map((cadastro) => {
-                const realPot = cadastro.categorias?.[0]?.potencialAtingido || 0;
-                const totalPot = cadastro.categorias?.[0]?.potencialTotal || 0;
-                const unidade = cadastro.categorias?.[0]?.unidadePotencial || "tons";
-                const produto = cadastro.categorias?.[0]?.produtoNomeLivre || cadastro.categorias?.[0]?.produtoRef || "---";
-                const safra = cadastro.categorias?.[0]?.safra || "Verão";
-                const safraIcon = safra === "Verão" ? "☀️" : "❄️";
+        {/* Lista de cadastros (com busca incluindo ATC) */}
+        <View className="mb-6">
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-lg font-bold text-foreground">📋 Cadastros</Text>
+            <Text className="text-xs text-muted">{cadastrosFiltrados.length} cadastro(s)</Text>
+          </View>
 
-                return (
-                  <View
-                    key={cadastro.cadastroId}
-                    className="bg-surface border border-border rounded-lg mb-2 overflow-hidden"
-                  >
-                    <View className="p-3 gap-2">
-                      <View className="flex-row items-center justify-between">
-                        <View className="flex-1">
-                          <Text className="text-sm font-bold text-foreground">{cadastro.canal}</Text>
-                          <Text className="text-xs text-muted">{produto}</Text>
-                        </View>
-                        <View className="flex-row gap-2">
-                          <View className="bg-blue-500 rounded px-2 py-1">
-                            <Text className="text-xs text-white font-semibold">{safraIcon}</Text>
-                          </View>
-                        </View>
-                      </View>
+          {cadastrosFiltrados.map((cadastro) => {
+            const realPot = cadastro.categorias?.[0]?.potencialAtingido || 0;
+            const totalPot = cadastro.categorias?.[0]?.potencialTotal || 0;
+            const unidade = cadastro.categorias?.[0]?.unidadePotencial || "tons";
+            const produto = cadastro.categorias?.[0]?.produtoNomeLivre || cadastro.categorias?.[0]?.produtoRef || "---";
+            const safra = cadastro.categorias?.[0]?.safra || "Verão";
+            const safraIcon = safra === "Verão" ? "☀️" : "❄️";
 
-                      <View className="flex-row gap-1 text-xs">
-                        <Text className="text-muted">ID: {cadastro.cadastroId.substring(0, 8)}</Text>
-                        <Text className="text-muted">•</Text>
-                        <Text className="text-muted">{cadastro.unidade}</Text>
-                        <Text className="text-muted">•</Text>
-                        <Text className="text-muted">{cadastro.atcNome}</Text>
-                      </View>
-
-                      <View className="flex-row gap-1 ml-auto">
-                        <Text className="text-xs text-blue-400 font-semibold">
-                          Atingido: {realPot.toFixed(0)} {unidade}
-                        </Text>
-                        <Text className="text-xs text-orange-400 font-semibold">
-                          Total: {totalPot.toFixed(0)} {unidade}
-                        </Text>
-                      </View>
+            return (
+              <View
+                key={cadastro.cadastroId}
+                className="bg-surface border border-border rounded-lg mb-2 overflow-hidden"
+              >
+                <View className="p-3 gap-2">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-1">
+                      <Text className="text-sm font-bold text-foreground">{cadastro.canal}</Text>
+                      <Text className="text-xs text-muted">{produto}</Text>
                     </View>
-
-                    {/* Botões Compactos */}
-                    <View className="flex-row gap-1.5 border-t border-border p-2">
-                      <TouchableOpacity
-                        className="flex-1 bg-primary rounded py-1.5 items-center active:opacity-80"
-                        onPress={() => {
-                          console.log("[Dashboard] Editar cadastro", cadastro.cadastroId);
-                          router.push(`/novo-cadastro?editId=${encodeURIComponent(cadastro.cadastroId)}` as any);
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text className="text-white text-xs font-semibold">✏️ Editar</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        className="flex-1 bg-error rounded py-1.5 items-center active:opacity-80"
-                        onPress={async () => {
-                          const confirmed = await confirmAction(`Excluir ${cadastro.canal}?`, "Excluir");
-                          if (!confirmed) return;
-
-                          try {
-                            const updated = cadastros.map((c) =>
-                              c.cadastroId === cadastro.cadastroId
-                                ? { ...c, deletado: true }
-                                : c
-                            );
-                            await setCadastrosLocal(updated);
-                            setCadastros(updated);
-                            console.log("[Dashboard] Excluir cadastro", cadastro.cadastroId);
-                            await deleteCadastroFromSheets(cadastro.cadastroId);
-                            toast.show("success", "✅ Excluído", "");
-                          } catch (e) {
-                            toast.show("error", "❌ Erro", String(e));
-                          }
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text className="text-white text-xs font-semibold">🗑️ Excluir</Text>
-                      </TouchableOpacity>
+                    <View className="flex-row gap-2">
+                      <View className="bg-blue-500 rounded px-2 py-1">
+                        <Text className="text-xs text-white font-semibold">{safraIcon}</Text>
+                      </View>
                     </View>
                   </View>
-                );
-              })}
-            {cadastros.filter(c => !c.deletado && c.atcNome?.toLowerCase().includes(searchAtc.toLowerCase())).length === 0 && (
-              <View className="bg-surface border border-border rounded-lg p-4">
-                <Text className="text-sm text-muted text-center">
-                  Nenhum cadastro encontrado para "{searchAtc}"
-                </Text>
+
+                  <View className="flex-row gap-1 text-xs">
+                    <Text className="text-muted">ID: {cadastro.cadastroId.substring(0, 8)}</Text>
+                    <Text className="text-muted">•</Text>
+                    <Text className="text-muted">{cadastro.unidade}</Text>
+                    <Text className="text-muted">•</Text>
+                    <Text className="text-muted">{cadastro.atcNome}</Text>
+                  </View>
+
+                  <View className="flex-row gap-1 ml-auto">
+                    <Text className="text-xs text-blue-400 font-semibold">
+                      Atingido: {realPot.toFixed(0)} {unidade}
+                    </Text>
+                    <Text className="text-xs text-orange-400 font-semibold">
+                      Total: {totalPot.toFixed(0)} {unidade}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Botões Compactos */}
+                <View className="flex-row gap-1.5 border-t border-border p-2">
+                  <TouchableOpacity
+                    className="flex-1 bg-primary rounded py-1.5 items-center active:opacity-80"
+                    onPress={() => {
+                      console.log("[Dashboard] Editar cadastro", cadastro.cadastroId);
+                      router.push(`/novo-cadastro?editId=${encodeURIComponent(cadastro.cadastroId)}` as any);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text className="text-white text-xs font-semibold">✏️ Editar</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    className="flex-1 bg-error rounded py-1.5 items-center active:opacity-80"
+                    onPress={async () => {
+                      const confirmed = await confirmAction(`Excluir ${cadastro.canal}?`, "Excluir");
+                      if (!confirmed) return;
+
+                      try {
+                        const updated = cadastros.map((c) =>
+                          c.cadastroId === cadastro.cadastroId
+                            ? { ...c, deletado: true }
+                            : c
+                        );
+                        await setCadastrosLocal(updated);
+                        setCadastros(updated);
+                        console.log("[Dashboard] Excluir cadastro", cadastro.cadastroId);
+                        await deleteCadastroFromSheets(cadastro.cadastroId);
+                        toast.show("success", "✅ Excluído", "");
+                      } catch (e) {
+                        toast.show("error", "❌ Erro", String(e));
+                      }
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text className="text-white text-xs font-semibold">🗑️ Excluir</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            )}
-          </View>
-        )}
+            );
+          })}
+
+          {cadastrosFiltrados.length === 0 && (
+            <View className="bg-surface border border-border rounded-lg p-4">
+              <Text className="text-sm text-muted text-center">
+                Nenhum cadastro encontrado{normalizedSearch ? ` para "${searchText}"` : ""}
+              </Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </ScreenContainer>
   );
