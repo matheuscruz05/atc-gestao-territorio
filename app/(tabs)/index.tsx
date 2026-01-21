@@ -375,7 +375,7 @@ export default function HomeScreen() {
 
     const potenciais = calcularTotaisPotencial();
     const createdDate = item.criadoEm ? new Date(item.criadoEm).toLocaleDateString("pt-BR") : "Data desconhecida";
-    const editedDate = item.editadoEm ? new Date(item.editadoEm).toLocaleString("pt-BR", { 
+    const editedDate = (item.editadoEm && item.editadoEm !== "") ? new Date(item.editadoEm).toLocaleString("pt-BR", { 
       day: '2-digit', 
       month: '2-digit', 
       year: 'numeric',

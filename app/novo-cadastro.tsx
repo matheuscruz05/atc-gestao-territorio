@@ -319,7 +319,7 @@ export default function NovoCadastroScreen() {
         estado,
         categorias: categoriasData,
         deletado: false,
-        editadoEm: isEditing ? now : undefined, // Só marca editadoEm se for edição
+        editadoEm: isEditing ? now : "", // Define editadoEm como string vazia para novos cadastros
         historico, // Salvar histórico completo
       };
 
