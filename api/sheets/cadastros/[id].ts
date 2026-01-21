@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
@@ -82,7 +81,7 @@ function loadServiceAccount(): ServiceAccount | null {
   }
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "DELETE") {
     res.setHeader("Allow", "DELETE");
     return res.status(405).json({ success: false, error: "Method Not Allowed" });
