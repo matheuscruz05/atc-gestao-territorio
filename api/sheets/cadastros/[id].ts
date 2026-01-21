@@ -64,20 +64,31 @@ async function getAccessToken(sa: ServiceAccount): Promise<string> {
 }
 
 function loadServiceAccount(): ServiceAccount | null {
-  const keyFile = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
-  if (!keyFile) {
-    console.error("[Sheets] ERROR: GOOGLE_SERVICE_ACCOUNT_KEY_FILE not configured");
+  // Tenta carregar JSON direto da env var (produção Vercel)
+  const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
+  
+  if (!jsonEnv) {
+    console.error("[Sheets] ERROR: GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_KEY_FILE not configured");
     return null;
   }
 
   try {
-    const fullPath = path.resolve(keyFile);
-    const raw = fs.readFileSync(fullPath, "utf-8");
-    const sa = JSON.parse(raw);
+    // Tenta parsear diretamente como JSON
+    const sa = JSON.parse(jsonEnv);
+    console.log("[Sheets] ✅ Service Account carregado com sucesso");
     return sa;
-  } catch (e) {
-    console.error("[Sheets] ERROR: Could not read GOOGLE_SERVICE_ACCOUNT_KEY_FILE", e);
-    return null;
+  } catch (parseError) {
+    // Se falhar, tenta como caminho de arquivo (desenvolvimento local)
+    try {
+      const fullPath = path.resolve(jsonEnv);
+      const raw = fs.readFileSync(fullPath, "utf-8");
+      const sa = JSON.parse(raw);
+      console.log("[Sheets] ✅ Service Account carregado de arquivo");
+      return sa;
+    } catch (fileError) {
+      console.error("[Sheets] ERROR: Não foi possível carregar Service Account:", fileError);
+      return null;
+    }
   }
 }
 
