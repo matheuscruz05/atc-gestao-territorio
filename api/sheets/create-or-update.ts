@@ -56,21 +56,37 @@ async function getAccessToken(sa: ServiceAccount): Promise<string> {
 }
 
 function loadServiceAccount(): ServiceAccount | null {
-  const keyFile = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
-  if (!keyFile) {
-    console.error("[Sheets] ERROR: GOOGLE_SERVICE_ACCOUNT_KEY_FILE not configured");
-    return null;
+  // Opção 1: Tentar JSON environment variable (produção Vercel preferido)
+  const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (jsonEnv) {
+    try {
+      const sa = JSON.parse(jsonEnv);
+      console.log("[Sheets] ✅ Carregado Service Account de GOOGLE_SERVICE_ACCOUNT_JSON");
+      return sa;
+    } catch (e) {
+      console.error("[Sheets] ERROR: GOOGLE_SERVICE_ACCOUNT_JSON não é JSON válido", e);
+    }
   }
 
-  try {
-    const fullPath = path.resolve(keyFile);
-    const raw = fs.readFileSync(fullPath, "utf-8");
-    const sa = JSON.parse(raw);
-    return sa;
-  } catch (e) {
-    console.error("[Sheets] ERROR: Could not read GOOGLE_SERVICE_ACCOUNT_KEY_FILE", e);
-    return null;
+  // Opção 2: Tentar arquivo local (desenvolvimento)
+  const keyFile = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
+  if (keyFile) {
+    try {
+      const fullPath = path.resolve(keyFile);
+      const raw = fs.readFileSync(fullPath, "utf-8");
+      const sa = JSON.parse(raw);
+      console.log("[Sheets] ✅ Carregado Service Account de GOOGLE_SERVICE_ACCOUNT_KEY_FILE");
+      return sa;
+    } catch (e) {
+      console.error("[Sheets] ERROR: Could not read GOOGLE_SERVICE_ACCOUNT_KEY_FILE", e);
+    }
   }
+
+  console.error("[Sheets] ERROR: Service account não configurado!");
+  console.error("[Sheets] Defina uma destas variáveis:");
+  console.error("[Sheets]   - GOOGLE_SERVICE_ACCOUNT_JSON (JSON string, recomendado produção)");
+  console.error("[Sheets]   - GOOGLE_SERVICE_ACCOUNT_KEY_FILE (caminho arquivo, desenvolvimento)");
+  return null;
 }
 
 function getSpreadsheetId(): string {
@@ -183,12 +199,22 @@ export default async function handler(req: any, res: any) {
 
     const spreadsheetId = getSpreadsheetId();
     if (!spreadsheetId) {
-      return res.status(500).json({ success: false, error: "GOOGLE_SHEETS_ID not configured" });
+      console.error("[Sheets Handler] ❌ GOOGLE_SHEETS_ID não configurado");
+      return res.status(500).json({ 
+        success: false, 
+        error: "GOOGLE_SHEETS_ID not configured",
+        details: "Configure EXPO_PUBLIC_GOOGLE_SHEETS_ID no Vercel Dashboard"
+      });
     }
 
     const sa = loadServiceAccount();
     if (!sa) {
-      return res.status(500).json({ success: false, error: "Service account not configured" });
+      console.error("[Sheets Handler] ❌ Service account não configurado");
+      return res.status(500).json({ 
+        success: false, 
+        error: "Service account not configured",
+        details: "Configure GOOGLE_SERVICE_ACCOUNT_JSON no Vercel Dashboard (JSON completo do arquivo service account)"
+      });
     }
 
     const accessToken = await getAccessToken(sa);
