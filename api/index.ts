@@ -63,7 +63,24 @@ app.use((req, _res, next) => {
 
 // Register routes
 registerOAuthRoutes(app);
-app.use("/api/sheets", sheetsRouter);
+
+// Log antes de registrar rotas
+console.log("[API] Registrando rotas de sheets...");
+try {
+  app.use("/api/sheets", sheetsRouter);
+  console.log("[API] ✅ Rotas de sheets registradas com sucesso");
+} catch (e) {
+  console.error("[API] ❌ ERRO ao registrar rotas de sheets:", e);
+}
+
+// Rota de teste simples
+app.post("/api/sheets/create-or-update", (_req, res) => {
+  console.log("[API] ❌ ROTA CORINGA ACIONADA - Isso significa que o roteador principal NÃO interceptou a requisição!");
+  res.status(500).json({
+    error: "Route intercepted by fallback - check router registration",
+    message: "A rota /api/sheets foi registrada, mas esta rota coringa foi acionada"
+  });
+});
 
 // Health check com diagnóstico
 app.get("/api/health", (_req, res) => {
@@ -82,26 +99,41 @@ app.get("/api/health", (_req, res) => {
   res.json(status);
 });
 
-// Endpoint de status detalhado (apenas para debug)
-app.get("/api/status", (_req, res) => {
+// Endpoint de diagnóstico detalhado
+app.get("/api/diagnose", (_req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
     server: "Express on Vercel",
-    routes: [
+    routes_registered: [
       "POST /api/sheets/create-or-update",
+      "POST /api/sheets/cadastros",
+      "POST /api/sheets/cadastros/bulk",
+      "DELETE /api/sheets/cadastros/:id",
       "GET /api/health",
       "GET /api/status",
+      "GET /api/diagnose",
       "GET /api/trpc/:procedure"
     ],
-    environment: {
+    environment_variables: {
       NODE_ENV: process.env.NODE_ENV || "not-set",
       VERCEL_ENV: process.env.VERCEL_ENV || "not-set",
-      EXPO_PUBLIC_GOOGLE_SHEETS_ID: process.env.EXPO_PUBLIC_GOOGLE_SHEETS_ID ? "✅ SET" : "❌ NOT SET",
+      EXPO_PUBLIC_GOOGLE_SHEETS_ID: process.env.EXPO_PUBLIC_GOOGLE_SHEETS_ID ? "✅ SET (" + process.env.EXPO_PUBLIC_GOOGLE_SHEETS_ID.substring(0, 20) + "...)" : "❌ NOT SET",
       GOOGLE_SHEETS_ID: process.env.GOOGLE_SHEETS_ID ? "✅ SET" : "❌ NOT SET",
       GOOGLE_SERVICE_ACCOUNT_JSON: process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? "✅ SET (" + process.env.GOOGLE_SERVICE_ACCOUNT_JSON.length + " chars)" : "❌ NOT SET",
       GOOGLE_SERVICE_ACCOUNT_KEY_FILE: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE ? "✅ SET" : "❌ NOT SET",
-    }
+      EXPO_PUBLIC_GOOGLE_SHEETS_API_KEY: process.env.EXPO_PUBLIC_GOOGLE_SHEETS_API_KEY ? "✅ SET" : "❌ NOT SET",
+    },
+    next_step: "Se GOOGLE_SERVICE_ACCOUNT_JSON é NOT SET, adicione no Vercel Dashboard"
+  });
+});
+
+// Endpoint de teste POST (sem roteador)
+app.post("/api/test-sheets", (_req, res) => {
+  console.log("[API] POST /api/test-sheets chamado - teste básico");
+  res.json({
+    test: "ok",
+    message: "Endpoint de teste funcionando"
   });
 });
 
@@ -116,6 +148,15 @@ app.use(
 // Health check para Vercel
 app.get("/", (_req, res) => {
   res.json({ status: "ok", message: "Server is running" });
+});
+
+// 404 Handler - antes do error handler
+app.use("/api/*", (_req, res) => {
+  res.status(404).json({
+    error: "Not Found",
+    message: "Rota não encontrada",
+    path: _req.path
+  });
 });
 
 // Global error handler - MUST return JSON
