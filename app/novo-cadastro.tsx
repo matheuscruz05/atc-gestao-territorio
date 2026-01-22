@@ -227,34 +227,52 @@ export default function NovoCadastroScreen() {
   // Validar e salvar
   const handleSalvar = async () => {
     console.log("\n========== 🚀 INICIANDO SALVAMENTO ==========");
+    console.log("[Novo Cadastro] 🔒 Bloqueando cliques duplos...");
     
-    // Verificar se user está definido
-    if (!user) {
-      console.error("[Novo Cadastro] ❌ ERRO CRÍTICO: user é undefined!");
-      Alert.alert("Erro Crítico", "Usuário não identificado. Faça login novamente.");
+    // Bloquear cliques duplos
+    if (isLoading) {
+      console.warn("[Novo Cadastro] ⚠️  JÁ ESTÁ SALVANDO, ignorando novo clique");
       return;
     }
-    console.log(`[Novo Cadastro] 👤 Usuário: ${user.nome} (${user.email}) - Role: ${user.role}`);
     
-    // Validações apenas dos campos essenciais: Canal, Unidade e Estado
-    if (!canal) {
-      Alert.alert("Erro", "Selecione um canal");
-      return;
-    }
-    if (!unidade.trim()) {
-      Alert.alert("Erro", "Digite a unidade");
-      return;
-    }
-    if (!estado) {
-      Alert.alert("Erro", "Selecione um estado");
-      return;
-    }
-
-    // Todas as categorias e seus campos são opcionais
-    // Se não preenchidos, aparecerá "?" no cadastro
-
+    // Definir loading IMEDIATAMENTE
     setIsLoading(true);
+    
     try {
+      console.log("[Novo Cadastro] ✅ isLoading definido como true");
+      
+      // Verificar se user está definido
+      if (!user) {
+        console.error("[Novo Cadastro] ❌ ERRO CRÍTICO: user é undefined!");
+        Alert.alert("Erro Crítico", "Usuário não identificado. Faça login novamente.");
+        setIsLoading(false);
+        return;
+      }
+      console.log(`[Novo Cadastro] 👤 Usuário: ${user.nome} (${user.email}) - Role: ${user.role}`);
+      
+      // Validações apenas dos campos essenciais: Canal, Unidade e Estado
+      if (!canal) {
+        console.warn("[Novo Cadastro] ⚠️  Canal vazio");
+        Alert.alert("Erro", "Selecione um canal");
+        setIsLoading(false);
+        return;
+      }
+      if (!unidade.trim()) {
+        console.warn("[Novo Cadastro] ⚠️  Unidade vazia");
+        Alert.alert("Erro", "Digite a unidade");
+        setIsLoading(false);
+        return;
+      }
+      if (!estado) {
+        console.warn("[Novo Cadastro] ⚠️  Estado não selecionado");
+        Alert.alert("Erro", "Selecione um estado");
+        setIsLoading(false);
+        return;
+      }
+
+      // Todas as categorias e seus campos são opcionais
+      // Se não preenchidos, aparecerá "?" no cadastro
+
       const now = new Date().toISOString();
       console.log(`[Novo Cadastro] ⏰ Timestamp atual: ${now}`);
       
@@ -380,8 +398,10 @@ export default function NovoCadastroScreen() {
       console.log("========== ✅ SALVAMENTO CONCLUÍDO ==========");
     } catch (error) {
       console.error("[Novo Cadastro] ❌ ERRO NO SALVAMENTO:", error);
-      Alert.alert("Erro", "Ocorreu um erro ao salvar o cadastro");
+      console.error("[Novo Cadastro] Stack:", error instanceof Error ? error.stack : "N/A");
+      Alert.alert("Erro", "Ocorreu um erro ao salvar o cadastro: " + String(error));
     } finally {
+      console.log("[Novo Cadastro] 🔓 Desbloqueando cliques duplos...");
       setIsLoading(false);
     }
   };
