@@ -260,11 +260,17 @@ export default async function handler(req: any, res: any) {
       });
     }
   } catch (error) {
-    console.error("[Sheets Handler] Erro ao sincronizar cadastro:", error);
+    console.error("[Sheets Handler] ❌ ERRO ao sincronizar cadastro:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : "";
+    
+    console.error("[Sheets Handler] Stack:", errorStack);
+    
     return res.status(500).json({
       success: false,
       error: "Failed to sync cadastro",
-      message: String(error),
+      message: errorMessage,
+      details: process.env.NODE_ENV === "development" ? errorStack : undefined,
     });
   }
 }

@@ -73,28 +73,44 @@ async function getAccessToken(sa: ServiceAccount): Promise<string> {
 }
 
 function loadServiceAccount(): ServiceAccount | null {
-  const keyFile = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
-  
   console.log("[Sheets] Loading Service Account...");
-  console.log("[Sheets] GOOGLE_SERVICE_ACCOUNT_KEY_FILE:", keyFile);
-  
-  if (!keyFile) {
-    console.error("[Sheets] ERROR: GOOGLE_SERVICE_ACCOUNT_KEY_FILE not configured");
-    return null;
+
+  // Opção 1: Tentar JSON direto da environment variable (Vercel produção)
+  const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (jsonEnv) {
+    try {
+      console.log("[Sheets] Tentando carregar de GOOGLE_SERVICE_ACCOUNT_JSON...");
+      const sa = JSON.parse(jsonEnv);
+      console.log("[Sheets] ✅ Service Account carregado de GOOGLE_SERVICE_ACCOUNT_JSON");
+      console.log("[Sheets] Client Email:", sa.client_email);
+      return sa;
+    } catch (e) {
+      console.error("[Sheets] ERROR ao parsear GOOGLE_SERVICE_ACCOUNT_JSON:", e);
+    }
   }
 
-  try {
-    const fullPath = path.resolve(keyFile);
-    console.log("[Sheets] Trying to read file:", fullPath);
-    const raw = fs.readFileSync(fullPath, "utf-8");
-    const sa = JSON.parse(raw);
-    console.log("[Sheets] ✅ Service Account loaded successfully");
-    console.log("[Sheets] Client Email:", sa.client_email);
-    return sa;
-  } catch (e) {
-    console.error("[Sheets] ERROR: Could not read GOOGLE_SERVICE_ACCOUNT_KEY_FILE", e);
-    return null;
+  // Opção 2: Tentar arquivo local (desenvolvimento)
+  const keyFile = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
+  if (keyFile) {
+    try {
+      console.log("[Sheets] Tentando carregar de GOOGLE_SERVICE_ACCOUNT_KEY_FILE...");
+      const fullPath = path.resolve(keyFile);
+      console.log("[Sheets] Lendo arquivo:", fullPath);
+      const raw = fs.readFileSync(fullPath, "utf-8");
+      const sa = JSON.parse(raw);
+      console.log("[Sheets] ✅ Service Account carregado de arquivo");
+      console.log("[Sheets] Client Email:", sa.client_email);
+      return sa;
+    } catch (e) {
+      console.error("[Sheets] ERROR ao ler GOOGLE_SERVICE_ACCOUNT_KEY_FILE:", e);
+    }
   }
+
+  console.error("[Sheets] ❌ ERROR: Service Account não configurado!");
+  console.error("[Sheets] Defina uma destas variáveis de ambiente:");
+  console.error("[Sheets]   - GOOGLE_SERVICE_ACCOUNT_JSON (recomendado para produção)");
+  console.error("[Sheets]   - GOOGLE_SERVICE_ACCOUNT_KEY_FILE (para desenvolvimento)");
+  return null;
 }
 
 function normalizeCategorias(cadastro: any) {
@@ -437,6 +453,132 @@ router.delete("/cadastros/:id", async (req, res) => {
   } catch (error) {
     console.error("[Sheets] Erro ao deletar cadastro:", error);
     return res.json({ success: true }); // Retorna sucesso mesmo com erro
+  }
+});
+
+// POST /api/sheets/create-or-update - Alias para /cadastros (compatibilidade com app)
+router.post("/create-or-update", async (req, res) => {
+  console.log("[Sheets] POST /create-or-update - Roteando para /cadastros...");
+  try {
+    const cadastro = req.body;
+    
+    if (!cadastro || !cadastro.cadastroId) {
+      console.error("[Sheets] ❌ Erro: Invalid cadastro data");
+      return res.status(400).json({ success: false, error: "Invalid cadastro data" });
+    }
+
+    console.log("[Sheets] [create-or-update] cadastroId:", cadastro.cadastroId);
+
+    const spreadsheetId = getSpreadsheetId();
+    if (!spreadsheetId) {
+      console.error("[Sheets] ❌ ERROR: SPREADSHEET_ID not configured");
+      return res.status(500).json({
+        success: false,
+        error: "SPREADSHEET_ID not configured",
+        details: "Configure EXPO_PUBLIC_GOOGLE_SHEETS_ID no Vercel Dashboard"
+      });
+    }
+
+    const sa = loadServiceAccount();
+    if (!sa) {
+      console.error("[Sheets] ❌ Service Account not configured");
+      return res.status(500).json({
+        success: false,
+        error: "Service Account not configured",
+        details: "Configure GOOGLE_SERVICE_ACCOUNT_JSON no Vercel Dashboard"
+      });
+    }
+
+    console.log("[Sheets] [create-or-update] Gerando access token...");
+    const accessToken = await getAccessToken(sa);
+    console.log("[Sheets] [create-or-update] ✅ Access token obtido");
+
+    const categorias = normalizeCategorias(cadastro);
+    const cadastroRow = [
+      cadastro.cadastroId,
+      cadastro.atcEmail,
+      cadastro.atcNome,
+      cadastro.canal,
+      cadastro.unidade,
+      cadastro.estado,
+      cadastro.criadoEm,
+      cadastro.editadoEm || "",
+      cadastro.deletado ? "true" : "false",
+      JSON.stringify(categorias || []),
+      JSON.stringify(cadastro.historico || []),
+    ];
+
+    // Verificar se já existe
+    const rowsRange = "CADASTROS!A:A";
+    const rowsUrl = `${SHEETS_API_BASE}/${spreadsheetId}/values/${rowsRange}`;
+    
+    console.log("[Sheets] [create-or-update] Buscando cadastros existentes...");
+    const rowsRes = await fetch(rowsUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const rowsData = await rowsRes.json();
+    const existingRows = rowsData.values || [];
+    
+    // Procurar se cadastro já existe (verifica coluna A - cadastroId)
+    let existingRowIndex = -1;
+    for (let i = 0; i < existingRows.length; i++) {
+      if (existingRows[i]?.[0] === cadastro.cadastroId) {
+        existingRowIndex = i;
+        break;
+      }
+    }
+    
+    let targetRow: number;
+    if (existingRowIndex >= 0) {
+      // UPDATE: Cadastro já existe
+      targetRow = existingRowIndex + 1; // +1 porque a linha 1 é header
+      console.log("[Sheets] [create-or-update] ✏️ UPDATE - Atualizando linha:", targetRow);
+    } else {
+      // INSERT: Cadastro não existe
+      targetRow = existingRows.length + 1; // Próxima linha vazia
+      console.log("[Sheets] [create-or-update] ✨ INSERT - Inserindo na linha:", targetRow);
+    }
+
+    // Proteção: nunca escrever na linha 1 (cabeçalho)
+    if (targetRow < 2) targetRow = 2;
+
+    // Enviar dados (PUT funciona tanto para insert quanto update)
+    const insertRange = `CADASTROS!A${targetRow}:K${targetRow}`;
+    const insertUrl = `${SHEETS_API_BASE}/${spreadsheetId}/values/${insertRange}?valueInputOption=RAW`;
+
+    console.log("[Sheets] [create-or-update] Enviando dados para linha:", targetRow);
+    const insertRes = await fetch(insertUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        values: [cadastroRow],
+      }),
+    });
+
+    if (!insertRes.ok) {
+      const error = await insertRes.json();
+      console.error("[Sheets] [create-or-update] ❌ Erro ao enviar:", error);
+      throw new Error(`Failed to update sheets: ${error.error?.message || insertRes.statusText}`);
+    }
+
+    console.log("[Sheets] [create-or-update] ✅ Sucesso!");
+    return res.json({
+      success: true,
+      message: existingRowIndex >= 0 ? "Cadastro atualizado com sucesso" : "Cadastro criado com sucesso",
+      method: existingRowIndex >= 0 ? "UPDATE" : "INSERT",
+      rowIndex: targetRow
+    });
+  } catch (error) {
+    console.error("[Sheets] [create-or-update] ❌ ERRO:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to sync cadastro",
+      message: errorMessage,
+    });
   }
 });
 
