@@ -42,6 +42,12 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+// Log all requests for debugging
+app.use((req, _res, next) => {
+  console.log(`[API] ${req.method} ${req.path}`);
+  next();
+});
+
 // Register routes
 registerOAuthRoutes(app);
 app.use("/api/sheets", sheetsRouter);
@@ -61,6 +67,21 @@ app.use(
 // Health check para Vercel
 app.get("/", (_req, res) => {
   res.json({ status: "ok", message: "Server is running" });
+});
+
+// Global error handler - MUST return JSON
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("[API] ❌ ERRO NÃO TRATADO:", err);
+  
+  // Garante que sempre retorna JSON
+  if (!res.headersSent) {
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+      message: err.message || String(err),
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
+    });
+  }
 });
 
 export default app;

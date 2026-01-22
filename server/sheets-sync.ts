@@ -458,41 +458,58 @@ router.delete("/cadastros/:id", async (req, res) => {
 
 // POST /api/sheets/create-or-update - Alias para /cadastros (compatibilidade com app)
 router.post("/create-or-update", async (req, res) => {
-  console.log("[Sheets] POST /create-or-update - Roteando para /cadastros...");
+  console.log("[Sheets] ========== POST /create-or-update START ==========");
+  console.log("[Sheets] Timestamp:", new Date().toISOString());
+  console.log("[Sheets] Body keys:", Object.keys(req.body || {}));
+  
   try {
     const cadastro = req.body;
     
     if (!cadastro || !cadastro.cadastroId) {
       console.error("[Sheets] ❌ Erro: Invalid cadastro data");
+      console.error("[Sheets] Body recebido:", JSON.stringify(req.body));
       return res.status(400).json({ success: false, error: "Invalid cadastro data" });
     }
 
-    console.log("[Sheets] [create-or-update] cadastroId:", cadastro.cadastroId);
+    console.log("[Sheets] [create-or-update] ✅ cadastroId:", cadastro.cadastroId);
+    console.log("[Sheets] [create-or-update] ✅ canal:", cadastro.canal);
+    console.log("[Sheets] [create-or-update] ✅ atcEmail:", cadastro.atcEmail);
 
     const spreadsheetId = getSpreadsheetId();
+    console.log("[Sheets] [create-or-update] SPREADSHEET_ID:", spreadsheetId || "❌ NÃO CONFIGURADO");
+    
     if (!spreadsheetId) {
       console.error("[Sheets] ❌ ERROR: SPREADSHEET_ID not configured");
+      console.error("[Sheets] ❌ Variáveis disponíveis:");
+      console.error("[Sheets]   - EXPO_PUBLIC_GOOGLE_SHEETS_ID:", process.env.EXPO_PUBLIC_GOOGLE_SHEETS_ID || "undefined");
+      console.error("[Sheets]   - GOOGLE_SHEETS_ID:", process.env.GOOGLE_SHEETS_ID || "undefined");
       return res.status(500).json({
         success: false,
         error: "SPREADSHEET_ID not configured",
-        details: "Configure EXPO_PUBLIC_GOOGLE_SHEETS_ID no Vercel Dashboard"
+        details: "Configure EXPO_PUBLIC_GOOGLE_SHEETS_ID ou GOOGLE_SHEETS_ID no Vercel Dashboard"
       });
     }
 
+    console.log("[Sheets] [create-or-update] Carregando Service Account...");
     const sa = loadServiceAccount();
     if (!sa) {
       console.error("[Sheets] ❌ Service Account not configured");
+      console.error("[Sheets] ❌ Variáveis disponíveis:");
+      console.error("[Sheets]   - GOOGLE_SERVICE_ACCOUNT_JSON:", process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? "SET (length: " + process.env.GOOGLE_SERVICE_ACCOUNT_JSON.length + ")" : "undefined");
+      console.error("[Sheets]   - GOOGLE_SERVICE_ACCOUNT_KEY_FILE:", process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE || "undefined");
       return res.status(500).json({
         success: false,
         error: "Service Account not configured",
         details: "Configure GOOGLE_SERVICE_ACCOUNT_JSON no Vercel Dashboard"
       });
     }
+    console.log("[Sheets] [create-or-update] ✅ Service Account OK - email:", sa.client_email);
 
     console.log("[Sheets] [create-or-update] Gerando access token...");
     const accessToken = await getAccessToken(sa);
-    console.log("[Sheets] [create-or-update] ✅ Access token obtido");
+    console.log("[Sheets] [create-or-update] ✅ Access token obtido (length:", accessToken.length, ")");
 
+    console.log("[Sheets] [create-or-update] Normalizando categorias...");
     const categorias = normalizeCategorias(cadastro);
     const cadastroRow = [
       cadastro.cadastroId,
@@ -547,6 +564,9 @@ router.post("/create-or-update", async (req, res) => {
     const insertUrl = `${SHEETS_API_BASE}/${spreadsheetId}/values/${insertRange}?valueInputOption=RAW`;
 
     console.log("[Sheets] [create-or-update] Enviando dados para linha:", targetRow);
+    console.log("[Sheets] [create-or-update] Range:", insertRange);
+    console.log("[Sheets] [create-or-update] URL:", insertUrl);
+    
     const insertRes = await fetch(insertUrl, {
       method: "PUT",
       headers: {
@@ -558,6 +578,8 @@ router.post("/create-or-update", async (req, res) => {
       }),
     });
 
+    console.log("[Sheets] [create-or-update] Response status:", insertRes.status);
+    
     if (!insertRes.ok) {
       const error = await insertRes.json();
       console.error("[Sheets] [create-or-update] ❌ Erro ao enviar:", error);
@@ -565,6 +587,8 @@ router.post("/create-or-update", async (req, res) => {
     }
 
     console.log("[Sheets] [create-or-update] ✅ Sucesso!");
+    console.log("[Sheets] ========== POST /create-or-update END (SUCCESS) ==========");
+    
     return res.json({
       success: true,
       message: existingRowIndex >= 0 ? "Cadastro atualizado com sucesso" : "Cadastro criado com sucesso",
@@ -572,12 +596,17 @@ router.post("/create-or-update", async (req, res) => {
       rowIndex: targetRow
     });
   } catch (error) {
-    console.error("[Sheets] [create-or-update] ❌ ERRO:", error);
+    console.error("[Sheets] [create-or-update] ❌ ERRO CAPTURADO:", error);
+    console.error("[Sheets] [create-or-update] ❌ Tipo do erro:", typeof error);
+    console.error("[Sheets] [create-or-update] ❌ Stack:", error instanceof Error ? error.stack : "N/A");
+    console.error("[Sheets] ========== POST /create-or-update END (ERROR) ==========");
+    
     const errorMessage = error instanceof Error ? error.message : String(error);
     return res.status(500).json({
       success: false,
       error: "Failed to sync cadastro",
       message: errorMessage,
+      timestamp: new Date().toISOString()
     });
   }
 });
