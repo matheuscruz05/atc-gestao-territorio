@@ -73,43 +73,68 @@ async function getAccessToken(sa: ServiceAccount): Promise<string> {
 }
 
 function loadServiceAccount(): ServiceAccount | null {
-  console.log("[Sheets] Loading Service Account...");
+  console.log("[Sheets] ========== Loading Service Account ==========");
 
-  // Opção 1: Tentar JSON direto da environment variable (Vercel produção)
+  // Opção 1: Tentar JSON direto da environment variable (Vercel produção - PREFERIDA)
   const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (jsonEnv) {
+  if (jsonEnv && jsonEnv.trim()) {
     try {
-      console.log("[Sheets] Tentando carregar de GOOGLE_SERVICE_ACCOUNT_JSON...");
+      console.log("[Sheets] 🔍 Tentando carregar de GOOGLE_SERVICE_ACCOUNT_JSON...");
+      console.log("[Sheets] JSON length:", jsonEnv.length);
+      
       const sa = JSON.parse(jsonEnv);
-      console.log("[Sheets] ✅ Service Account carregado de GOOGLE_SERVICE_ACCOUNT_JSON");
+      
+      if (!sa.private_key || !sa.client_email) {
+        throw new Error("JSON inválido: faltam private_key ou client_email");
+      }
+      
+      console.log("[Sheets] ✅ Service Account carregado com sucesso!");
       console.log("[Sheets] Client Email:", sa.client_email);
+      console.log("[Sheets] Project ID:", sa.project_id);
+      console.log("[Sheets] ========== Loading Service Account END (SUCCESS) ==========");
       return sa;
     } catch (e) {
-      console.error("[Sheets] ERROR ao parsear GOOGLE_SERVICE_ACCOUNT_JSON:", e);
+      console.error("[Sheets] ❌ ERROR ao parsear GOOGLE_SERVICE_ACCOUNT_JSON:", e);
+      console.error("[Sheets] JSON Preview:", jsonEnv.substring(0, 100) + "...");
     }
+  } else {
+    console.warn("[Sheets] ⚠️ GOOGLE_SERVICE_ACCOUNT_JSON não definido ou vazio");
   }
 
   // Opção 2: Tentar arquivo local (desenvolvimento)
   const keyFile = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
-  if (keyFile) {
+  if (keyFile && keyFile.trim()) {
     try {
-      console.log("[Sheets] Tentando carregar de GOOGLE_SERVICE_ACCOUNT_KEY_FILE...");
+      console.log("[Sheets] 🔍 Tentando carregar de GOOGLE_SERVICE_ACCOUNT_KEY_FILE...");
       const fullPath = path.resolve(keyFile);
       console.log("[Sheets] Lendo arquivo:", fullPath);
       const raw = fs.readFileSync(fullPath, "utf-8");
       const sa = JSON.parse(raw);
-      console.log("[Sheets] ✅ Service Account carregado de arquivo");
+      
+      if (!sa.private_key || !sa.client_email) {
+        throw new Error("JSON inválido: faltam private_key ou client_email");
+      }
+      
+      console.log("[Sheets] ✅ Service Account carregado de arquivo!");
       console.log("[Sheets] Client Email:", sa.client_email);
+      console.log("[Sheets] ========== Loading Service Account END (SUCCESS) ==========");
       return sa;
     } catch (e) {
-      console.error("[Sheets] ERROR ao ler GOOGLE_SERVICE_ACCOUNT_KEY_FILE:", e);
+      console.error("[Sheets] ❌ ERROR ao ler GOOGLE_SERVICE_ACCOUNT_KEY_FILE:", e);
     }
+  } else {
+    console.warn("[Sheets] ⚠️ GOOGLE_SERVICE_ACCOUNT_KEY_FILE não definido ou vazio");
   }
 
-  console.error("[Sheets] ❌ ERROR: Service Account não configurado!");
-  console.error("[Sheets] Defina uma destas variáveis de ambiente:");
-  console.error("[Sheets]   - GOOGLE_SERVICE_ACCOUNT_JSON (recomendado para produção)");
-  console.error("[Sheets]   - GOOGLE_SERVICE_ACCOUNT_KEY_FILE (para desenvolvimento)");
+  console.error("[Sheets] ❌ FALHA: Service Account não configurado!");
+  console.error("[Sheets] 📋 Configuração necessária:");
+  console.error("[Sheets]   ✅ PRODUÇÃO (Vercel): Configure GOOGLE_SERVICE_ACCOUNT_JSON");
+  console.error("[Sheets]       - Ir para: Vercel Dashboard → Settings → Environment Variables");
+  console.error("[Sheets]       - Adicionar variável: GOOGLE_SERVICE_ACCOUNT_JSON");
+  console.error("[Sheets]       - Valor: JSON completo em uma linha");
+  console.error("[Sheets]   ✅ DESENVOLVIMENTO (localhost): Configure .env.local");
+  console.error("[Sheets]       - Definir: GOOGLE_SERVICE_ACCOUNT_KEY_FILE=./secrets/sa-key.json");
+  console.error("[Sheets] ========== Loading Service Account END (FAILED) ==========");
   return null;
 }
 
