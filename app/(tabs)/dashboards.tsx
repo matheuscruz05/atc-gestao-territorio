@@ -681,6 +681,7 @@ export default function DashboardsScreen() {
               <Text className="text-xs text-muted">{cadastrosFiltrados.length} cadastro(s)</Text>
             </View>
 
+            <View className="flex-row flex-wrap gap-2">
             {cadastrosFiltrados.map((cadastro) => {
             const realPot = cadastro.categorias?.[0]?.potencialAtingido || 0;
             const totalPot = cadastro.categorias?.[0]?.potencialTotal || 0;
@@ -692,7 +693,8 @@ export default function DashboardsScreen() {
             return (
               <View
                 key={cadastro.cadastroId}
-                className="bg-surface border border-border rounded-lg mb-2 overflow-hidden"
+                className="bg-surface border border-border rounded-lg overflow-hidden"
+                style={{ width: '48%' }}
               >
                 <View className="p-3 gap-2">
                   <View className="flex-row items-center justify-between">
@@ -773,6 +775,7 @@ export default function DashboardsScreen() {
               </View>
             );
           })}
+            </View>
 
             {cadastrosFiltrados.length === 0 && (
               <View className="bg-surface border border-border rounded-lg p-4">

@@ -186,8 +186,7 @@ export default function TimelineCoordScreen() {
 
     return (
       <View
-        key={index}
-        className={`bg-surface rounded-lg border border-${safraColor}-500 border-opacity-30 p-3 mb-3`}
+        className={`bg-surface rounded-lg border border-${safraColor}-500 border-opacity-30 p-3`}
       >
         {/* Header */}
         <View className="flex-row items-center justify-between mb-2">
@@ -447,7 +446,13 @@ export default function TimelineCoordScreen() {
             <Text className="text-xs text-gray-400 mb-2">
               {filteredData.length} {filteredData.length === 1 ? "resultado" : "resultados"}
             </Text>
-            {filteredData.map((item, index) => renderTimelineCard(item, index))}
+            <View className="flex-row flex-wrap gap-2">
+              {filteredData.map((item, index) => (
+                <View key={index} style={{ width: '48%' }}>
+                  {renderTimelineCard(item, index)}
+                </View>
+              ))}
+            </View>
           </>
         )}
         </ScrollView>
