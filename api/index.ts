@@ -55,6 +55,24 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+// Error handler para parsing de JSON
+app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof SyntaxError && 'body' in err) {
+    console.error("[API] ❌ ERRO DE PARSING JSON:", err.message);
+    return res.status(400).json({
+      success: false,
+      error: "Invalid JSON",
+      message: err.message
+    });
+  }
+  next();
+});
+
+// Wrapper para capturar erros em rotas async
+const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
 // Log all requests for debugging
 app.use((req, _res, next) => {
   console.log(`[API] ${req.method} ${req.path}`);
@@ -72,15 +90,6 @@ try {
 } catch (e) {
   console.error("[API] ❌ ERRO ao registrar rotas de sheets:", e);
 }
-
-// Rota de teste simples
-app.post("/api/sheets/create-or-update", (_req, res) => {
-  console.log("[API] ❌ ROTA CORINGA ACIONADA - Isso significa que o roteador principal NÃO interceptou a requisição!");
-  res.status(500).json({
-    error: "Route intercepted by fallback - check router registration",
-    message: "A rota /api/sheets foi registrada, mas esta rota coringa foi acionada"
-  });
-});
 
 // Health check com diagnóstico
 app.get("/api/health", (_req, res) => {
@@ -159,19 +168,27 @@ app.use("/api/*", (_req, res) => {
   });
 });
 
-// Global error handler - MUST return JSON
+// Global error handler - MUST return JSON (este deve ser o ÚLTIMO middleware)
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error("[API] ❌ ERRO NÃO TRATADO:", err);
+  console.error("[API] ❌ ERRO NÃO TRATADO:");
+  console.error("[API] Tipo:", typeof err);
+  console.error("[API] Message:", err.message);
+  console.error("[API] Stack:", err.stack);
+  console.error("[API] Full Error:", err);
   
-  // Garante que sempre retorna JSON
+  // Garanta que sempre retorna JSON
   if (!res.headersSent) {
-    res.status(500).json({
+    const statusCode = err.status || err.statusCode || 500;
+    res.status(statusCode).json({
       success: false,
       error: "Internal Server Error",
       message: err.message || String(err),
+      type: err.constructor.name,
       stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
       timestamp: new Date().toISOString()
     });
+  } else {
+    console.warn("[API] ⚠️ Headers já foram enviados, não posso responder ao erro");
   }
 });
 
