@@ -39,7 +39,7 @@ else
 fi
 
 info "Gerando secrets automaticamente"
-REDIS_PASS=$(rand_secret)
+REDIS_PASS=""  # Redis não precisa de password por enquanto (está isolado em rede docker)
 JWT_SECRET=$(rand_secret)
 SESSION_SECRET=$(rand_secret)
 
