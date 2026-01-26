@@ -13,8 +13,13 @@ import { resolve } from "path";
 
 // Carregar .env.local primeiro, depois .env
 // (Vercel ignora estas linhas, usa environment variables do dashboard)
-config({ path: resolve(process.cwd(), ".env.local") });
-config({ path: resolve(process.cwd(), ".env") });
+try {
+  config({ path: resolve(process.cwd(), ".env.local") });
+  config({ path: resolve(process.cwd(), ".env") });
+  console.log("[API] ✅ dotenv config loaded");
+} catch (error) {
+  console.warn("[API] ⚠️ dotenv config failed (normal no Vercel):", error);
+}
 
 import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -22,6 +27,8 @@ import { registerOAuthRoutes } from "../server/_core/oauth";
 import { appRouter } from "../server/routers";
 import { createContext } from "../server/_core/context";
 import { sheetsRouter } from "../server/sheets-sync";
+
+console.log("[API] ✅ All modules imported successfully");
 
 const app = express();
 
@@ -192,4 +199,23 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   }
 });
 
-export default app;
+// Export com wrapper de erro para capturar crashes na inicialização
+export default async (req: any, res: any) => {
+  try {
+    return await app(req, res);
+  } catch (error) {
+    console.error("[API] ❌ CRASH NA INVOCAÇÃO DA FUNÇÃO:");
+    console.error("[API] Error:", error);
+    console.error("[API] Stack:", error instanceof Error ? error.stack : "N/A");
+    
+    // Garantir resposta JSON
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: "Function invocation failed",
+        message: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+};

@@ -1,0 +1,176 @@
+SAIDA NO CONSOLE USANDO O VERCEL APP:
+
+Object Object
+entry-6a9a20d34505b1e317fcb625533e6736.js:761 Sincronizando dados com Google Sheets...
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][syncUsuariosFromSheets] 2026-01-26T01:19:35.668Z - Fetching usuarios range USUARIOS!A2:G
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][syncUsuariosFromSheets] 2026-01-26T01:19:36.096Z - Loaded usuarios Object
+entry-6a9a20d34505b1e317fcb625533e6736.js:761 Usuários sincronizados: 22
+entry-6a9a20d34505b1e317fcb625533e6736.js:761 Produtos sincronizados: 14
+entry-6a9a20d34505b1e317fcb625533e6736.js:761 Canais sincronizados: 19
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][syncUsuariosFromSheets] 2026-01-26T01:20:08.770Z - Fetching usuarios range USUARIOS!A2:G
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][syncUsuariosFromSheets] 2026-01-26T01:20:09.235Z - Loaded usuarios Object
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][syncCadastrosFromSheets] 2026-01-26T01:20:09.284Z - Buscando cadastros do Sheets
+entry-6a9a20d34505b1e317fcb625533e6736.js:856 ⚠️ [ATC - Meus Cadastros] Google Sheets vazio, usando localStorage como fallback
+(anonymous) @ entry-6a9a20d34505b1e317fcb625533e6736.js:856Understand this warning
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][syncConcorrentesFromSheets] 2026-01-26T01:20:11.696Z - Fetching concorrentes
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][syncConcorrentesFromSheets] 2026-01-26T01:20:11.969Z - Loaded concorrentes Object
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][syncConcorrentesFromSheets] 2026-01-26T01:20:12.015Z - Fetching concorrentes
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][syncConcorrentesFromSheets] 2026-01-26T01:20:12.361Z - Loaded concorrentes Object
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 
+========== 🚀 INICIANDO SALVAMENTO ==========
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] 🔒 Bloqueando cliques duplos...
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] ✅ isLoading definido como true
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] 👤 Usuário: GORIVALDO TESTE (atc@exemplo) - Role: ATC
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] ⏰ Timestamp atual: 2026-01-26T01:21:28.948Z
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] 📸 Snapshots criados: 14
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] ➕ MODO NOVO CADASTRO
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] 📖 Histórico criado: 1 registro
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] 📦 Objeto cadastro criado:
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286   - cadastroId: 1769390488949-iqm9ujnof
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286   - canal: COAMO
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286   - unidade: LONDRINA
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286   - atcEmail: atc@exemplo
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286   - atcNome: GORIVALDO TESTE
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286   - categorias: 14
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286   - historico: 1
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286   - editadoEm: 
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] 💾 Iniciando salvar em AsyncStorage...
+entry-6a9a20d34505b1e317fcb625533e6736.js:762 [Storage] 📝 addCadastro iniciado: cadastroId=1769390488949-iqm9ujnof
+entry-6a9a20d34505b1e317fcb625533e6736.js:762 [Storage] 📋 Cadastros atuais: 0 total
+entry-6a9a20d34505b1e317fcb625533e6736.js:762 [Storage] 🔍 Procurando cadastro 1769390488949-iqm9ujnof... índice=-1
+entry-6a9a20d34505b1e317fcb625533e6736.js:762 [Storage] ➕ Adicionando novo cadastro
+entry-6a9a20d34505b1e317fcb625533e6736.js:762 [Storage] 💾 Salvando 1 cadastros em AsyncStorage...
+entry-6a9a20d34505b1e317fcb625533e6736.js:762 [Storage] ✅ addCadastro concluído com sucesso!
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] ✅ Salvo em AsyncStorage com sucesso!
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] 🌐 Iniciando sincronização com Google Sheets...
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 
+========== 🌐 SINCRONIZANDO COM GOOGLE SHEETS ==========
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][sendCadastro] 2026-01-26T01:21:28.974Z - Enviando cadastro {id: '1769390488949-iqm9ujnof'}
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 📦 cadastroId: 1769390488949-iqm9ujnof
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 📝 canal: COAMO
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 📝 unidade: LONDRINA
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 📝 atcEmail: atc@exemplo
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] ✅ Categorias normalizadas: 14
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 🚀 POST para /api/sheets/create-or-update (base: relativa)
+entry-6a9a20d34505b1e317fcb625533e6736.js:767  POST https://atc-gestao-territorio.vercel.app/api/sheets/create-or-update 500 (Internal Server Error)
+_e.sendCadastroToSheets @ entry-6a9a20d34505b1e317fcb625533e6736.js:767
+onPress @ entry-6a9a20d34505b1e317fcb625533e6736.js:1286
+await in onPress
+onClick @ entry-6a9a20d34505b1e317fcb625533e6736.js:267
+ef @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+(anonymous) @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Bn @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+of @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Fd @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Td @ entry-6a9a20d34505b1e317fcb625533e6736.js:103Understand this error
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 📡 Response status: 500
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] ❌ ERRO ao enviar cadastro: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+_e.sendCadastroToSheets @ entry-6a9a20d34505b1e317fcb625533e6736.js:767
+await in _e.sendCadastroToSheets
+onPress @ entry-6a9a20d34505b1e317fcb625533e6736.js:1286
+await in onPress
+onClick @ entry-6a9a20d34505b1e317fcb625533e6736.js:267
+ef @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+(anonymous) @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Bn @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+of @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Fd @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Td @ entry-6a9a20d34505b1e317fcb625533e6736.js:103Understand this error
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] Resultado da sincronização: {success: false, message: 'Erro ao sincronizar cadastro', error: `SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON`}
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] ⚠️  Sincronização falhou! Enfileirando para retry...
+onPress @ entry-6a9a20d34505b1e317fcb625533e6736.js:1286
+await in onPress
+onClick @ entry-6a9a20d34505b1e317fcb625533e6736.js:267
+ef @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+(anonymous) @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Bn @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+of @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Fd @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Td @ entry-6a9a20d34505b1e317fcb625533e6736.js:103Understand this warning
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] ⚠️ Cadastro Salvo
+entry-6a9a20d34505b1e317fcb625533e6736.js:195 Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+M @ entry-6a9a20d34505b1e317fcb625533e6736.js:195
+_ @ entry-6a9a20d34505b1e317fcb625533e6736.js:235
+r @ entry-6a9a20d34505b1e317fcb625533e6736.js:221
+start @ entry-6a9a20d34505b1e317fcb625533e6736.js:221
+V @ entry-6a9a20d34505b1e317fcb625533e6736.js:849
+onPress @ entry-6a9a20d34505b1e317fcb625533e6736.js:1286
+await in onPress
+onClick @ entry-6a9a20d34505b1e317fcb625533e6736.js:267
+ef @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+(anonymous) @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Bn @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+of @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Fd @ entry-6a9a20d34505b1e317fcb625533e6736.js:103
+Td @ entry-6a9a20d34505b1e317fcb625533e6736.js:103Understand this warning
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 ========== ✅ SALVAMENTO CONCLUÍDO ==========
+entry-6a9a20d34505b1e317fcb625533e6736.js:1286 [Novo Cadastro] 🔓 Desbloqueando cliques duplos...
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 
+========== 🌐 SINCRONIZANDO COM GOOGLE SHEETS ==========
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [SheetsClient][sendCadastro] 2026-01-26T01:21:35.662Z - Enviando cadastro {id: '1769390488949-iqm9ujnof'}
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 📦 cadastroId: 1769390488949-iqm9ujnof
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 📝 canal: COAMO
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 📝 unidade: LONDRINA
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 📝 atcEmail: atc@exemplo
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] ✅ Categorias normalizadas: 14
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 🚀 POST para /api/sheets/create-or-update (base: relativa)
+entry-6a9a20d34505b1e317fcb625533e6736.js:767  POST https://atc-gestao-territorio.vercel.app/api/sheets/create-or-update 500 (Internal Server Error)
+_e.sendCadastroToSheets @ entry-6a9a20d34505b1e317fcb625533e6736.js:767
+v @ entry-6a9a20d34505b1e317fcb625533e6736.js:855
+await in v
+(anonymous) @ entry-6a9a20d34505b1e317fcb625533e6736.js:855Understand this error
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] 📡 Response status: 500
+entry-6a9a20d34505b1e317fcb625533e6736.js:767 [sendCadastro] ❌ ERRO ao enviar cadastro: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON
+_e.sendCadastroToSheets @ entry-6a9a20d34505b1e317fcb625533e6736.js:767
+await in _e.sendCadastroToSheets
+v @ entry-6a9a20d34505b1e317fcb625533e6736.js:855
+await in v
+(anonymous) @ entry-6a9a20d34505b1e317fcb625533e6736.js:855Understand this error
+
+_____________________________________________________________
+SAIDA USANDO LOCALHOST:
+
+1] Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1475/1475)
+[1] Web Bundled 12679ms node_modules/expo-router/entry.js (1475 modules)
+[1] Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 79.9% (1161/1299)
+[1] Web Bundled 4414ms node_modules/expo-router/entry.js (1477 modules)
+[1]  LOG  [web] Logs will appear in the browser console
+[1] Web lib/sync-queue.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[1] Web Bundled 231ms lib/sync-queue.ts (384 modules)
+[1] Web lib/storage.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[1] Web Bundled 10ms lib/storage.ts (1 module)
+[0] [Sheets] ========== POST /create-or-update START ==========
+[0] [Sheets] Timestamp: 2026-01-26T01:23:35.658Z
+[0] [Sheets] Body keys: [
+[0]   'cadastroId', 'criadoEm',
+[0]   'atcEmail',   'atcNome',
+[0]   'canal',      'unidade',
+[0]   'estado',     'categorias',
+[0]   'deletado',   'editadoEm',
+[0]   'historico'
+[0] ]
+[0] [Sheets] [create-or-update] ✅ cadastroId: 1769390615560-dcecjtz7j
+[0] [Sheets] [create-or-update] ✅ canal: COCAMAR
+[0] [Sheets] [create-or-update] ✅ atcEmail: atc@exemplo
+[0] [Sheets] [create-or-update] SPREADSHEET_ID: 1qDxc1c9j7IEa2ZKUIaZL_9M2GDZisL0g62HVw3KhUDs
+[0] [Sheets] [create-or-update] Carregando Service Account...
+[0] [Sheets] ========== Loading Service Account ==========
+[0] [Sheets] ⚠️ GOOGLE_SERVICE_ACCOUNT_JSON não definido ou vazio
+[0] [Sheets] 🔍 Tentando carregar de GOOGLE_SERVICE_ACCOUNT_KEY_FILE...
+[0] [Sheets] Lendo arquivo: /home/matheus/Documentos/prog_diuli/v3/atc-gestao-territorioV3/atc-gestao-territorio/secrets/sa-key.json
+[0] [Sheets] ✅ Service Account carregado de arquivo!
+[0] [Sheets] Client Email: atc-gestao-territorio-sa@atc-gestao-territorio-483803.iam.gserviceaccount.com
+[0] [Sheets] ========== Loading Service Account END (SUCCESS) ==========
+[0] [Sheets] [create-or-update] ✅ Service Account OK - email: atc-gestao-territorio-sa@atc-gestao-territorio-483803.iam.gserviceaccount.com
+[0] [Sheets] [create-or-update] Gerando access token...
+[0] [Sheets] [create-or-update] ✅ Access token obtido (length: 1024 )
+[0] [Sheets] [create-or-update] Normalizando categorias...
+[0] [Sheets] [create-or-update] Buscando cadastros existentes...
+[0] [Sheets] [create-or-update] ✨ INSERT - Inserindo na linha: 3
+[0] [Sheets] [create-or-update] Enviando dados para linha: 3
+[0] [Sheets] [create-or-update] Range: CADASTROS!A3:K3
+[0] [Sheets] [create-or-update] URL: https://sheets.googleapis.com/v4/spreadsheets/1qDxc1c9j7IEa2ZKUIaZL_9M2GDZisL0g62HVw3KhUDs/values/CADASTROS!A3:K3?valueInputOption=RAW
+[0] [Sheets] [create-or-update] Response status: 200
+[0] [Sheets] [create-or-update] ✅ Sucesso!
+[0] [Sheets] ========== POST /create-or-update END (SUCCESS) ==========
+
