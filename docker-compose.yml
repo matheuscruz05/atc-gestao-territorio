@@ -82,7 +82,6 @@ services:
       - "3000:3000"
       - "3001:3001"
     volumes:
-      - ./:/app:ro
       - ./secrets:/app/secrets:ro
       - ./logs/app:/app/logs
     networks:
