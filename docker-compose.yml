@@ -1,0 +1,202 @@
+version: '3.8'
+
+# ============================================================
+# Docker Compose: ATC Gestão de Território (Google Sheets)
+# Otimizado para: Dell Optplex 3040 (i5-6500, 12GB RAM, 240GB SSD)
+# Database: Google Sheets (sem MySQL local)
+# ============================================================
+
+services:
+  # ============================================================
+  # NGINX: Reverse Proxy + SSL/TLS
+  # ============================================================
+  nginx:
+    image: nginx:alpine
+    container_name: atc-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - app-network
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    environment:
+      - TZ=America/Sao_Paulo
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================
+  # NODE.JS APP: Expo Web + tRPC API + Google Sheets Sync
+  # ============================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: atc-app
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - TZ=America/Sao_Paulo
+      # Expo
+      - EXPO_PORT=3000
+      - EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL:-https://seu-dominio.com.br}
+      # Google Sheets
+      - EXPO_PUBLIC_GOOGLE_SHEETS_ID=${EXPO_PUBLIC_GOOGLE_SHEETS_ID}
+      - EXPO_PUBLIC_GOOGLE_SHEETS_API_KEY=${EXPO_PUBLIC_GOOGLE_SHEETS_API_KEY}
+      - GOOGLE_SERVICE_ACCOUNT_KEY_FILE=/app/secrets/sa-key.json
+      # Application
+      - APP_PORT=3001
+      - JWT_SECRET=${JWT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      # Redis Cache
+      - REDIS_URL=redis://default:${REDIS_PASSWORD}@redis:6379/0
+      - CACHE_TTL=3600
+      # Timeouts (aumentados para WiFi)
+      - API_TIMEOUT=30000
+      - SHEETS_SYNC_TIMEOUT=60000
+      - DB_CONNECT_TIMEOUT=15000
+      # Logging
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+      # Node Options
+      - NODE_OPTIONS=--max-old-space-size=1024
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    volumes:
+      - ./:/app:ro
+      - ./secrets:/app/secrets:ro
+      - ./logs/app:/app/logs
+    networks:
+      - app-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+        reservations:
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ============================================================
+  # REDIS: Cache + Session Storage
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: atc-redis
+    restart: always
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --timeout 300
+      --tcp-keepalive 300
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./data/redis:/data
+      - ./logs/redis:/var/log/redis
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+        reservations:
+          memory: 200M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ============================================================
+  # PORTAINER: Container Management (Opcional - apenas desenvolvimento)
+  # ============================================================
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: atc-portainer
+    restart: always
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/portainer:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+# ============================================================
+# NETWORKS
+# ============================================================
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ============================================================
+# VOLUMES (Optional - for explicit management)
+# ============================================================
+volumes:
+  redis-data:
+  portainer-data:
