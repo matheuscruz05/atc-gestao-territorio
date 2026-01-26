@@ -68,7 +68,15 @@ async function getAccessToken(sa: ServiceAccount): Promise<string> {
     }).toString(),
   });
 
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to get access token: ${response.status} ${errorText.substring(0, 100)}`);
+  }
+
   const data = (await response.json()) as { access_token: string };
+  if (!data.access_token) {
+    throw new Error("No access token in response from Google OAuth");
+  }
   return data.access_token;
 }
 
@@ -210,6 +218,12 @@ router.post("/cadastros", async (req, res) => {
     const rowsRes = await fetch(rowsUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
+    
+    if (!rowsRes.ok) {
+      const errorText = await rowsRes.text();
+      throw new Error(`Failed to fetch existing rows: ${rowsRes.status} ${errorText.substring(0, 100)}`);
+    }
+    
     const rowsData = await rowsRes.json();
     const existingRows = rowsData.values || [];
     
@@ -329,6 +343,12 @@ router.post("/cadastros/bulk", async (req, res) => {
     const rowsRes = await fetch(rowsUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
+    
+    if (!rowsRes.ok) {
+      const errorText = await rowsRes.text();
+      throw new Error(`Failed to fetch existing rows for UPSERT: ${rowsRes.status} ${errorText.substring(0, 100)}`);
+    }
+    
     const rowsData = await rowsRes.json();
     const existingRows = rowsData.values || [];
     
@@ -434,6 +454,12 @@ router.delete("/cadastros/:id", async (req, res) => {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch cadastros list: ${response.status} ${errorText.substring(0, 100)}`);
+    }
+    
     const data = await response.json();
 
     if (!data.values || data.values.length <= 1) {
@@ -558,6 +584,12 @@ router.post("/create-or-update", async (req, res) => {
     const rowsRes = await fetch(rowsUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
+    
+    if (!rowsRes.ok) {
+      const errorText = await rowsRes.text();
+      throw new Error(`Failed to fetch existing rows: ${rowsRes.status} ${errorText.substring(0, 100)}`);
+    }
+    
     const rowsData = await rowsRes.json();
     const existingRows = rowsData.values || [];
     
