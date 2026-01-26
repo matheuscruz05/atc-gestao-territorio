@@ -1,5 +1,3 @@
-version: '3.8'
-
 # ============================================================
 # Docker Compose: ATC Gestão de Território (Google Sheets)
 # Otimizado para: Dell Optplex 3040 (i5-6500, 12GB RAM, 240GB SSD)

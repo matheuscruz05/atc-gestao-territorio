@@ -51,8 +51,7 @@ WORKDIR /app
 # Instalar apenas dependências runtime
 RUN apk add --no-cache \
     curl \
-    tini \
-    dumb-init
+    tini
 
 # Instalar pnpm
 RUN npm install -g pnpm
@@ -90,8 +89,8 @@ EXPOSE 3000 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:3001/api/health || exit 1
 
-# Usar dumb-init para melhor signal handling
-ENTRYPOINT ["/sbin/dumb-init", "--"]
+# Usar tini para melhor signal handling
+ENTRYPOINT ["/sbin/tini", "--"]
 
 # Start application
 CMD ["node", "dist/index.js"]
