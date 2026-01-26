@@ -53,7 +53,7 @@ else
 fi
 
 # Criar .env.production
-info "Criando .env.production"
+info "Criando .env.production e .env"
 cat > "$ENV_PATH" <<EOF
 NODE_ENV=production
 TZ=America/Sao_Paulo
@@ -62,7 +62,7 @@ EXPO_PUBLIC_GOOGLE_SHEETS_ID=${GS_ID}
 EXPO_PUBLIC_GOOGLE_SHEETS_API_KEY=${GS_KEY}
 GOOGLE_SERVICE_ACCOUNT_KEY_FILE=/app/secrets/sa-key.json
 REDIS_PASSWORD=${REDIS_PASS}
-EXPO_PORT=3000
+EXPOSE_PORT=3000
 APP_PORT=3001
 JWT_SECRET=${JWT_SECRET}
 SESSION_SECRET=${SESSION_SECRET}
@@ -73,7 +73,28 @@ LOG_LEVEL=info
 LOG_FORMAT=json
 EOF
 chmod 600 "$ENV_PATH"
-success ".env.production criado"
+
+# Docker Compose procura por .env, não .env.production
+cat > "$PROJECT_DIR/.env" <<EOF
+NODE_ENV=production
+TZ=America/Sao_Paulo
+EXPO_PUBLIC_API_URL=${API_URL}
+EXPO_PUBLIC_GOOGLE_SHEETS_ID=${GS_ID}
+EXPO_PUBLIC_GOOGLE_SHEETS_API_KEY=${GS_KEY}
+GOOGLE_SERVICE_ACCOUNT_KEY_FILE=/app/secrets/sa-key.json
+REDIS_PASSWORD=${REDIS_PASS}
+EXPOSE_PORT=3000
+APP_PORT=3001
+JWT_SECRET=${JWT_SECRET}
+SESSION_SECRET=${SESSION_SECRET}
+API_TIMEOUT=30000
+SHEETS_SYNC_TIMEOUT=60000
+DB_CONNECT_TIMEOUT=15000
+LOG_LEVEL=info
+LOG_FORMAT=json
+EOF
+chmod 600 "$PROJECT_DIR/.env"
+success ".env.production e .env criados"
 
 # Certificados
 if [[ -n "${DOMAIN:-}" ]]; then
