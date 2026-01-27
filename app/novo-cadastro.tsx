@@ -123,13 +123,17 @@ export default function NovoCadastroScreen() {
     async function loadForEdit() {
       if (!editId) return;
       try {
+        console.log(`[Novo Cadastro] 🔄 Carregando cadastro para edição: ${editId}`);
         // Tentar buscar do Google Sheets primeiro (Vercel/web)
         let found: Cadastro | undefined = undefined;
         try {
+          console.log(`[Novo Cadastro] 📊 Tentando buscar do Google Sheets...`);
           const allFromSheets = await syncCadastrosFromSheets();
           found = allFromSheets.find((c) => c.cadastroId === editId);
           if (found) {
             console.log(`✅ [Novo Cadastro] Cadastro carregado do Google Sheets: ${editId}`);
+          } else {
+            console.warn(`⚠️ [Novo Cadastro] Cadastro NÃO encontrado no Sheets: ${editId}`);
           }
         } catch (error) {
           console.warn(`⚠️ [Novo Cadastro] Erro ao buscar do Sheets, tentando localStorage:`, error);
@@ -137,14 +141,19 @@ export default function NovoCadastroScreen() {
         
         // Fallback para localStorage se Sheets falhou
         if (!found) {
+          console.log(`[Novo Cadastro] 💾 Tentando buscar do localStorage...`);
           const all = await getCadastros();
           found = all.find((c) => c.cadastroId === editId);
           if (found) {
             console.log(`✅ [Novo Cadastro] Cadastro carregado do localStorage: ${editId}`);
+          } else {
+            console.error(`❌ [Novo Cadastro] Cadastro NÃO encontrado em nenhuma fonte: ${editId}`);
+            console.error(`[Novo Cadastro] Cadastros disponíveis no localStorage: ${all.map(c => c.cadastroId).join(", ")}`);
           }
         }
         
         if (found) {
+          console.log(`[Novo Cadastro] ✅ Preenchendo formulário com dados do cadastro...`);
           setCanal(found.canal);
           setUnidade(found.unidade);
           setEstado(found.estado);
@@ -153,6 +162,7 @@ export default function NovoCadastroScreen() {
           
           // Se tem categorias (novo formato)
           if (found.categorias && found.categorias.length > 0) {
+            console.log(`[Novo Cadastro] 📦 Cadastro tem ${found.categorias.length} categorias (novo formato)`);
             // Garantir que categorias antigas sejam migradas
             const migrated = found.categorias.map(cat => ({
               ...cat,
@@ -162,6 +172,7 @@ export default function NovoCadastroScreen() {
             }));
             setCategoriasData(migrated);
           } else {
+            console.log(`[Novo Cadastro] 📦 Cadastro em formato antigo, convertendo...`);
             // Formato antigo - converter
             if (found.categoria) {
               const oldData: CategoriaData = {
@@ -199,9 +210,11 @@ export default function NovoCadastroScreen() {
           setIsEditing(true);
           setEditingId(found.cadastroId);
           setOriginalCreatedEm(found.criadoEm || null);
+          console.log(`[Novo Cadastro] ✅ Modo de edição ativado!`);
         }
       } catch (error) {
-        console.error("Erro ao carregar cadastro para edição:", error);
+        console.error("❌ Erro geral ao carregar cadastro para edição:", error);
+        console.error("Stack:", error instanceof Error ? error.stack : "N/A");
       }
     }
 
@@ -227,6 +240,7 @@ export default function NovoCadastroScreen() {
   // Validar e salvar
   const handleSalvar = async () => {
     console.log("\n========== 🚀 INICIANDO SALVAMENTO ==========");
+    console.log(`[Novo Cadastro] ⏰ Hora: ${new Date().toLocaleTimeString('pt-BR')}`);
     console.log("[Novo Cadastro] 🔒 Bloqueando cliques duplos...");
     
     // Bloquear cliques duplos
@@ -237,13 +251,20 @@ export default function NovoCadastroScreen() {
     
     // Definir loading IMEDIATAMENTE
     setIsLoading(true);
+    console.log("[Novo Cadastro] ✅ isLoading definido como true");
     
     try {
-      console.log("[Novo Cadastro] ✅ isLoading definido como true");
-      
       // Verificar se user está definido
       if (!user) {
         console.error("[Novo Cadastro] ❌ ERRO CRÍTICO: user é undefined!");
+        console.error("[Novo Cadastro] Estado atual:", {
+          isLoading,
+          isEditing,
+          canal,
+          unidade,
+          estado,
+          categoriasData: `${categoriasData.length} categorias`,
+        });
         Alert.alert("Erro Crítico", "Usuário não identificado. Faça login novamente.");
         setIsLoading(false);
         return;
@@ -251,6 +272,11 @@ export default function NovoCadastroScreen() {
       console.log(`[Novo Cadastro] 👤 Usuário: ${user.nome} (${user.email}) - Role: ${user.role}`);
       
       // Validações apenas dos campos essenciais: Canal, Unidade e Estado
+      console.log(`[Novo Cadastro] 📋 Validando campos essenciais...`);
+      console.log(`  - canal: ${canal || "❌ VAZIO"}`);
+      console.log(`  - unidade: ${unidade ? "✅ preenchido" : "❌ VAZIO"}`);
+      console.log(`  - estado: ${estado || "❌ VAZIO"}`);
+      
       if (!canal) {
         console.warn("[Novo Cadastro] ⚠️  Canal vazio");
         Alert.alert("Erro", "Selecione um canal");
@@ -270,6 +296,8 @@ export default function NovoCadastroScreen() {
         return;
       }
 
+      console.log("[Novo Cadastro] ✅ Todas as validações passaram!");
+      
       // Todas as categorias e seus campos são opcionais
       // Se não preenchidos, aparecerá "?" no cadastro
 
@@ -337,7 +365,9 @@ export default function NovoCadastroScreen() {
         estado,
         categorias: categoriasData,
         deletado: false,
-        editadoEm: isEditing ? now : "", // Define editadoEm como string vazia para novos cadastros
+        // SEMPRE preenchê editadoEm quando é edição, mesmo que cadastro antigo não tenha
+        // Para novos cadastros, deixa vazio para que apareça "criado" mas não "editado"
+        editadoEm: isEditing ? now : "",
         historico, // Salvar histórico completo
       };
 
@@ -358,8 +388,18 @@ export default function NovoCadastroScreen() {
 
       // Tentar sincronizar com Google Sheets
       console.log(`[Novo Cadastro] 🌐 Iniciando sincronização com Google Sheets...`);
+      console.log(`[Novo Cadastro] 📊 Enviando cadastro para API...`);
       const syncResult = await sendCadastroToSheets(novoCadastro);
-      console.log(`[Novo Cadastro] Resultado da sincronização:`, syncResult);
+      
+      console.log(`[Novo Cadastro] ✅ Resposta da API recebida:`);
+      console.log(`  - success: ${syncResult.success}`);
+      console.log(`  - message: ${syncResult.message}`);
+      if (syncResult.error) {
+        console.error(`  - error: ${syncResult.error}`);
+      }
+      if (syncResult.details) {
+        console.error(`  - details: ${JSON.stringify(syncResult.details)}`);
+      }
 
       if (syncResult.success) {
         const title = isEditing ? "✅ Cadastro Atualizado" : "✅ Sucesso";
@@ -368,23 +408,31 @@ export default function NovoCadastroScreen() {
           : "Cadastro salvo e sincronizado com Google Sheets!";
 
         console.log(`[Novo Cadastro] 🎉 ${title}`);
+        console.log(`[Novo Cadastro] ℹ️  ${message}`);
         toast.show("success", title, message);
         
         // Se foi edição, sincronizar dados do Sheets para garantir que tudo está atualizado
         if (isEditing) {
           console.log(`[Novo Cadastro] 🔄 Recarregando dados do Google Sheets após edição...`);
           try {
-            await syncCadastrosFromSheets();
-            console.log("[Novo Cadastro] ✅ Sincronização de cadastros após edição concluída");
+            const result = await syncCadastrosFromSheets();
+            console.log(`[Novo Cadastro] ✅ Sincronização de cadastros após edição concluída`);
+            console.log(`[Novo Cadastro] 📦 Total de cadastros sincronizados: ${result.length}`);
           } catch (e) {
             console.warn("[Novo Cadastro] ⚠️  Erro ao sincronizar cadastros após edição:", e);
+            console.error("[Novo Cadastro] Stack trace:", e instanceof Error ? e.stack : "N/A");
           }
         }
         
-        setTimeout(() => router.back(), 600);
+        console.log("[Novo Cadastro] ⏱️  Aguardando 600ms antes de voltar...");
+        setTimeout(() => {
+          console.log("[Novo Cadastro] 🔙 Voltando para tela anterior...");
+          router.back();
+        }, 600);
       } else {
         // Enfileirar para retry em segundo plano
         console.warn(`[Novo Cadastro] ⚠️  Sincronização falhou! Enfileirando para retry...`);
+        console.log(`[Novo Cadastro] 📦 Guardando em fila de sincronização...`);
         await enqueueCadastro(novoCadastro);
         const title = isEditing ? "⚠️ Cadastro Atualizado" : "⚠️ Cadastro Salvo";
         const message =
@@ -392,17 +440,36 @@ export default function NovoCadastroScreen() {
           " Sincronização pendente — será tentada automaticamente.";
 
         console.log(`[Novo Cadastro] ${title}`);
+        console.log(`[Novo Cadastro] ℹ️  ${message}`);
         toast.show("info", title, message);
-        setTimeout(() => router.back(), 600);
+        console.log("[Novo Cadastro] ⏱️  Aguardando 600ms antes de voltar...");
+        setTimeout(() => {
+          console.log("[Novo Cadastro] 🔙 Voltando para tela anterior...");
+          router.back();
+        }, 600);
       }
-      console.log("========== ✅ SALVAMENTO CONCLUÍDO ==========");
+      console.log("========== ✅ SALVAMENTO CONCLUÍDO ==========\n");
     } catch (error) {
-      console.error("[Novo Cadastro] ❌ ERRO NO SALVAMENTO:", error);
-      console.error("[Novo Cadastro] Stack:", error instanceof Error ? error.stack : "N/A");
+      console.error("\n❌ ❌ ❌ ERRO NO SALVAMENTO ❌ ❌ ❌");
+      console.error("[Novo Cadastro] ❌ Erro capturado:", error);
+      if (error instanceof Error) {
+        console.error("[Novo Cadastro] Nome do erro:", error.name);
+        console.error("[Novo Cadastro] Mensagem:", error.message);
+        console.error("[Novo Cadastro] Stack:", error.stack);
+      }
+      console.error("[Novo Cadastro] Estado quando erro ocorreu:", {
+        isEditing,
+        editingId,
+        canal,
+        unidade,
+        estado,
+        isLoading,
+      });
       Alert.alert("Erro", "Ocorreu um erro ao salvar o cadastro: " + String(error));
     } finally {
       console.log("[Novo Cadastro] 🔓 Desbloqueando cliques duplos...");
       setIsLoading(false);
+      console.log("[Novo Cadastro] ✅ isLoading definido como false");
     }
   };
 
@@ -449,7 +516,7 @@ export default function NovoCadastroScreen() {
               {/* Sugestões de Autocomplete */}
               {showCanalSuggestions && canalSearch.length > 0 && (
                 <View 
-                  className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border-2 border-primary rounded-lg max-h-48 overflow-hidden shadow-xl"
+                  className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border-2 border-primary rounded-lg max-h-96 overflow-hidden shadow-xl"
                   style={{ zIndex: 9999 }}
                 >
                   <ScrollView>
@@ -722,7 +789,7 @@ export default function NovoCadastroScreen() {
 
                     {/* Dropdown com opções filtradas */}
                     {concorrenteDropdownOpen[index] && (
-                      <View className="bg-background border border-border rounded-lg overflow-hidden max-h-48">
+                      <View className="bg-background border border-border rounded-lg overflow-hidden max-h-96">
                         <ScrollView nestedScrollEnabled>
                           {concorrentes
                             .filter((conc) =>
