@@ -35,8 +35,8 @@ COPY . .
 RUN echo "NODE_ENV=production" > .env && \
     echo "EXPO_PUBLIC_API_URL=http://localhost" >> .env
 
-# Build web app (com fallback se falhar)
-RUN pnpm build || echo "Build parcial (esperado em algumas configurações)"
+# Build web app
+RUN pnpm build
 
 # Build server
 RUN pnpm build:server
