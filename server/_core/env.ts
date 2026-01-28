@@ -1,8 +1,21 @@
+import { config } from "dotenv";
+import { resolve } from "path";
+
+// Carregar .env.local primeiro, depois .env (garante disponibilidade em módulos importados cedo)
+config({ path: resolve(process.cwd(), ".env.local") });
+config({ path: resolve(process.cwd(), ".env") });
+
 export const ENV = {
   appId: process.env.VITE_APP_ID || process.env.EXPO_PUBLIC_APP_ID || "",
-  cookieSecret: process.env.JWT_SECRET || "dev-secret-DO-NOT-USE-IN-PRODUCTION",
+  cookieSecret:
+    process.env.JWT_SECRET ||
+    process.env.EXPO_PUBLIC_JWT_SECRET ||
+    "dev-secret-DO-NOT-USE-IN-PRODUCTION",
   databaseUrl: process.env.DATABASE_URL ?? "",
-  oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
+  oAuthServerUrl:
+    process.env.OAUTH_SERVER_URL ||
+    process.env.EXPO_PUBLIC_OAUTH_SERVER_URL ||
+    "",
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
