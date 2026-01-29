@@ -25,6 +25,8 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const PAGE_SIZE = 6;
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Helper: Converter cadastro antigo para novo formato
   const normalizeToNewFormat = (cadastro: Cadastro): Cadastro => {
@@ -312,6 +314,13 @@ export default function HomeScreen() {
     });
     setFilteredCadastros(filtered);
   }, [searchQuery, cadastros]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE));
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [filteredCadastros.length, currentPage, PAGE_SIZE]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -683,13 +692,13 @@ export default function HomeScreen() {
 
           {/* Contador */}
           <Text className="text-sm text-muted">
-            {filteredCadastros.length} cadastro(s){pendingCount ? ` • ${pendingCount} pendente(s)` : ""}
+            {filteredCadastros.length} cadastro(s){pendingCount ? ` • ${pendingCount} pendente(s)` : ""} • Página {Math.min(currentPage, Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE)))} de {Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE))}
           </Text>
         </View>
 
         {/* Lista em Grid de 2 colunas */}
         <FlatList
-          data={filteredCadastros}
+          data={filteredCadastros.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)}
           renderItem={({ item }) => (
             <View className="w-1/2 px-2 mb-4">
               {renderCadastroCard({ item })}
@@ -713,6 +722,44 @@ export default function HomeScreen() {
                   : "Nenhum cadastro ainda.\nToque no + para adicionar."}
               </Text>
             </View>
+          }
+          ListFooterComponent={
+            filteredCadastros.length > 0 ? (
+              <View className="w-full items-center mt-2 mb-6">
+                <Text className="text-xs text-muted mb-2">
+                  Mostrando {filteredCadastros.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredCadastros.length)} de {filteredCadastros.length}
+                </Text>
+                <View className="flex-row items-center gap-3">
+                  <TouchableOpacity
+                    className={`px-4 py-2 rounded-full border ${
+                      currentPage === 1 ? "border-border opacity-50" : "border-primary"
+                    }`}
+                    onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <Text className={currentPage === 1 ? "text-muted" : "text-primary"}>Anterior</Text>
+                  </TouchableOpacity>
+
+                  <View className="px-3 py-2 rounded-full border border-border bg-surface">
+                    <Text className="text-xs text-foreground">
+                      {Math.min(currentPage, Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE)))} / {Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE))}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    className={`px-4 py-2 rounded-full border ${
+                      currentPage >= Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE))
+                        ? "border-border opacity-50"
+                        : "border-primary"
+                    }`}
+                    onPress={() => setCurrentPage((p) => p + 1)}
+                    disabled={currentPage >= Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE))}
+                  >
+                    <Text className={currentPage >= Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE)) ? "text-muted" : "text-primary"}>Próxima</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null
           }
         />
 

@@ -287,6 +287,132 @@ router.post("/cadastros", async (req, res) => {
   }
 });
 
+// GET /api/sheets/cadastros - Busca todos os cadastros
+router.get("/cadastros", async (req, res) => {
+  console.log("[Sheets] GET /cadastros - Buscando todos os cadastros...");
+  
+  try {
+    const spreadsheetId = getSpreadsheetId();
+    
+    if (!spreadsheetId) {
+      console.error("[Sheets] Erro: Spreadsheet ID não configurado");
+      return res.status(500).json({ success: false, error: "Spreadsheet ID not configured" });
+    }
+
+    const sa = loadServiceAccount();
+    if (!sa) {
+      console.error("[Sheets] Erro: Service Account not configured");
+      return res.status(500).json({ success: false, error: "Service Account not configured" });
+    }
+
+    console.log("[Sheets] Gerando access token...");
+    const accessToken = await getAccessToken(sa);
+    console.log("[Sheets] ✅ Access token obtido");
+
+    // Buscar dados da planilha CADASTROS (colunas A-H, linhas 2-1000)
+    const range = "CADASTROS!A2:H1000";
+    const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${range}`;
+    
+    console.log("[Sheets] Buscando dados do range:", range);
+    
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("[Sheets] Erro ao buscar:", response.status, text);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.values || data.values.length === 0) {
+      console.log("[Sheets] ✅ Nenhum cadastro encontrado");
+      return res.json({ success: true, cadastros: [] });
+    }
+
+    const looksLikeEmail = (value?: string) => !!value && /@/.test(value);
+    const looksLikeIsoDate = (value?: string) => !!value && /\d{4}-\d{2}-\d{2}T/.test(value);
+    const pickCategoriasJson = (...values: Array<string | undefined>) =>
+      values.find((val) => {
+        if (!val) return false;
+        const trimmed = val.trim();
+        return trimmed.startsWith("[") || trimmed.startsWith("{");
+      }) || "";
+
+    // Parse dos dados
+    const cadastros = data.values.map((row: string[], i: number) => {
+      // Detect if sheet has an empty first column (offset by one)
+      const offset = row.length > 1 && row[0] === "" ? 1 : 0;
+
+      let cadastroId = row[offset + 0] || "";
+      let criadoEm = row[offset + 1] || "";
+      let atcEmail = row[offset + 2] || "";
+      let atcNome = row[offset + 3] || "";
+      let canal = row[offset + 4] || "";
+      let unidade = row[offset + 5] || "";
+      let estado = row[offset + 6] || "";
+
+      // Heurística: se a coluna de criado_em estiver ausente, os dados estão deslocados
+      if (looksLikeEmail(criadoEm) && !looksLikeEmail(atcEmail)) {
+        atcEmail = criadoEm;
+        atcNome = row[offset + 2] || "";
+        canal = row[offset + 3] || "";
+        unidade = row[offset + 4] || "";
+        estado = row[offset + 5] || "";
+        criadoEm = "";
+      }
+
+      // Normalizar criadoEm se inválido
+      if (!looksLikeIsoDate(criadoEm)) {
+        criadoEm = criadoEm || new Date().toISOString();
+      }
+
+      // Parse categorias from JSON (coluna H ou G)
+      let categorias: any[] = [];
+      const categoriasJson = pickCategoriasJson(row[offset + 7], row[offset + 6]);
+
+      if (categoriasJson) {
+        try {
+          const parsed = JSON.parse(categoriasJson);
+          // Garantir migração de dados antigos
+          categorias = parsed.map((cat: any) => ({
+            ...cat,
+            safra: cat.safra ?? "Verão",
+            potencialAtingido: cat.potencialAtingido ?? (cat.implantado === "Sim" ? (cat.potencialValor || 0) : 0),
+            potencialTotal: cat.potencialTotal ?? (cat.potencialValor || 0),
+          }));
+        } catch (e) {
+          console.warn(`[Sheets] Erro ao parsear categorias JSON no row ${i + 2}:`, e);
+          categorias = [];
+        }
+      }
+
+      return {
+        cadastroId,
+        criadoEm,
+        atcEmail,
+        atcNome,
+        canal,
+        unidade,
+        estado,
+        categorias,
+        deletado: false,
+      };
+    }).filter((c: any) => c.cadastroId);
+
+    console.log(`[Sheets] ✅ Encontrados ${cadastros.length} cadastros`);
+    
+    return res.json({ success: true, cadastros });
+  } catch (error) {
+    console.error("[Sheets] ERRO ao buscar cadastros:", error);
+    return res.status(500).json({ success: false, error: String(error) });
+  }
+});
+
 // POST /api/sheets/cadastros/bulk - Envia múltiplos cadastros
 router.post("/cadastros/bulk", async (req, res) => {
   console.log("[Sheets] POST /cadastros/bulk - Recebendo cadastros...");
