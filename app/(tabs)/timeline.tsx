@@ -25,10 +25,6 @@ export default function TimelineScreen() {
   // Paginação
   const PAGE_SIZE = 14;
   const [currentPage, setCurrentPage] = useState(1);
-  
-  // Paginação
-  const PAGE_SIZE = 14;
-  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     loadData();
@@ -156,19 +152,6 @@ export default function TimelineScreen() {
 
     return filtered;
   }, [timelineData, searchText, selectedSafra, searchProduto]);
-
-  // Calcular paginação
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
-  const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const endIndex = startIndex + PAGE_SIZE;
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-
-  // Garantir que currentPage não ultrapasse totalPages
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1);
-    }
-  }, [totalPages, currentPage]);
 
   // Calcular paginação
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
