@@ -384,10 +384,55 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
 
 /**
  * Buscar cadastros de um ATC específico
+ * Com retry robusto: tenta sincronizar do Sheets com retry, depois fallback para localStorage
  */
 export async function getCadastrosByAtc(atcEmail: string): Promise<Cadastro[]> {
-  const cadastros = await syncCadastrosFromSheets();
-  return cadastros.filter(c => c.atcEmail.toLowerCase() === atcEmail.toLowerCase());
+  const emailLower = atcEmail.toLowerCase();
+  
+  console.log(`[getCadastrosByAtc] 🔍 Buscando cadastros para: ${atcEmail}`);
+  
+  // Tentativa 1: Sincronizar do Google Sheets
+  try {
+    console.log(`[getCadastrosByAtc] 📡 Tentativa 1: Sincronizar do Google Sheets...`);
+    const cadastros = await syncCadastrosFromSheets();
+    
+    if (cadastros && cadastros.length > 0) {
+      const filtered = cadastros.filter(c => c.atcEmail.toLowerCase() === emailLower);
+      console.log(`[getCadastrosByAtc] ✅ Sucesso! Encontrados ${filtered.length} cadastros do Sheets para ${atcEmail}`);
+      if (filtered.length > 0) {
+        return filtered; // Retornar imediatamente se encontrou
+      } else {
+        console.warn(`[getCadastrosByAtc] ⚠️ Google Sheets tem cadastros, mas nenhum para ${atcEmail}`);
+      }
+    } else {
+      console.warn(`[getCadastrosByAtc] ⚠️ Google Sheets vazio ou sem cadastros`);
+    }
+  } catch (error) {
+    console.error(`[getCadastrosByAtc] ❌ Erro ao sincronizar Sheets:`, error);
+  }
+  
+  // Tentativa 2: Se Sheets falhou, tentar fallback com localStorage
+  console.log(`[getCadastrosByAtc] 💾 Tentativa 2: Buscar no localStorage como fallback...`);
+  try {
+    const { getCadastros } = await import("@/lib/storage");
+    const localCadastros = await getCadastros();
+    
+    if (localCadastros && localCadastros.length > 0) {
+      const filtered = localCadastros.filter(c => 
+        !c.deletado && c.atcEmail.toLowerCase() === emailLower
+      );
+      console.log(`[getCadastrosByAtc] ✅ Encontrados ${filtered.length} cadastros no localStorage para ${atcEmail}`);
+      return filtered;
+    } else {
+      console.warn(`[getCadastrosByAtc] ⚠️ localStorage vazio`);
+    }
+  } catch (error) {
+    console.error(`[getCadastrosByAtc] ❌ Erro ao buscar localStorage:`, error);
+  }
+  
+  // Se chegou aqui, não encontrou em nenhum lugar
+  console.warn(`[getCadastrosByAtc] ⚠️ NENHUM cadastro encontrado para ${atcEmail}`);
+  return [];
 }
 
 /**
