@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { getCadastros, setCadastros } from "@/lib/storage";
 import { getCadastrosByAtc, syncCadastrosFromSheets } from "@/lib/google-sheets-sync";
 import { CATEGORIAS, PRODUTOS_CATALOGO } from "@/types/models";
-import type { Cadastro, CategoriaData, Implantado } from "@/types/models";
+import type { Cadastro, CategoriaData, Implantado, Safra } from "@/types/models";
 
 export default function HomeScreen() {
   const { user, isCoord } = useAuth();
@@ -25,11 +25,37 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const PAGE_SIZE = 6;
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Helper: Converter cadastro antigo para novo formato
   const normalizeToNewFormat = (cadastro: Cadastro): Cadastro => {
+    // DEBUG: Ver quantas categorias chegam
+    if (cadastro.categorias && cadastro.categorias.length > 0) {
+      console.log(`[DEBUG] Cadastro ${cadastro.cadastroId?.substring(0, 8)} tem ${cadastro.categorias.length} categorias:`, cadastro.categorias.map(c => c.categoria));
+    }
+    
     // Se já tem categorias no novo formato, retornar como está
     if (cadastro.categorias && cadastro.categorias.length > 0) {
+      // MIGRAÇÃO: Se tem apenas 5 categorias (formato agrupado antigo), retornar sem processar
+      // para que seja exibido corretamente - não tentar expandir categorias agrupadas
+      if (cadastro.categorias.length === 5) {
+        console.log(`[DEBUG] Cadastro tem 5 categorias (formato agrupado) - mantendo como está`);
+        // Garantir campos essenciais
+        return {
+          ...cadastro,
+          categorias: cadastro.categorias.map(cat => ({
+            ...cat,
+            safra: cat.safra ?? "Verão",
+            potencialAtingido: cat.potencialAtingido ?? (cat.implantado === "Sim" ? (cat.potencialValor || 0) : 0),
+            potencialTotal: cat.potencialTotal ?? (cat.potencialValor || 0),
+          })),
+        };
+      }
+      
+      // Para cadastros com 14 categorias (novo formato)
+      console.log(`[DEBUG] Cadastro tem ${cadastro.categorias.length} categorias (novo formato) - processando normalmente`);
+      
       // Garantir migração de campos de potencial e safra
       // E migrar HIDRO_LIVRE para NITRATO_CALCIO (primeiro produto HIDROSSOLÚVEIS)
       const migratedBase = cadastro.categorias.map(cat => {
@@ -94,6 +120,7 @@ export default function HomeScreen() {
     if (cadastro.categoria) {
       const oldData: CategoriaData = {
         categoria: cadastro.categoria,
+        safra: cadastro.safra || "Verão",
         produtoRef: cadastro.produtoRef || "",
         produtoNomeLivre: cadastro.produtoNomeLivre || "",
         unidadePotencial: cadastro.unidadePotencial || "tons",
@@ -109,6 +136,7 @@ export default function HomeScreen() {
           ? oldData
           : {
               categoria: cat,
+              safra: "Verão" as Safra,
               produtoRef: "",
               produtoNomeLivre: "",
               unidadePotencial: "tons" as const,
@@ -131,6 +159,7 @@ export default function HomeScreen() {
       ...cadastro,
       categorias: CATEGORIAS.map((cat) => ({
         categoria: cat,
+        safra: "Verão" as Safra,
         produtoRef: "",
         produtoNomeLivre: "",
         unidadePotencial: "tons" as const,
@@ -220,7 +249,7 @@ export default function HomeScreen() {
       
       let allCadastros: Cadastro[] = [];
       
-      // Buscar SEMPRE do Google Sheets (ambiente web/Vercel)
+      // Buscar SEMPRE do Google Sheets (ambiente web/Vercel - SEM localStorage)
       try {
         if (isCoord) {
           // COORD: buscar TODOS os cadastros do Sheets
@@ -229,10 +258,8 @@ export default function HomeScreen() {
             allCadastros = sheetsCadastros.filter(c => !c.deletado);
             console.log(`✅ [COORD - Meus Cadastros] Carregados ${allCadastros.length} cadastros do Google Sheets`);
           } else {
-            // Fallback para localStorage se Sheets estiver vazio
-            console.warn(`⚠️ [COORD - Meus Cadastros] Google Sheets vazio, usando localStorage como fallback`);
-            const localCadastros = await getCadastros();
-            allCadastros = localCadastros.filter(c => !c.deletado);
+            console.warn(`⚠️ [COORD - Meus Cadastros] Google Sheets vazio!`);
+            allCadastros = [];
           }
         } else {
           // ATC: buscar apenas seus cadastros do Sheets
@@ -241,18 +268,13 @@ export default function HomeScreen() {
             allCadastros = sheetsCadastros;
             console.log(`✅ [ATC - Meus Cadastros] Carregados ${allCadastros.length} cadastros do Google Sheets`);
           } else {
-            // Fallback para localStorage se Sheets estiver vazio
-            console.warn(`⚠️ [ATC - Meus Cadastros] Google Sheets vazio, usando localStorage como fallback`);
-            const localCadastros = await getCadastros();
-            allCadastros = localCadastros.filter(c => c.atcEmail === user.email && !c.deletado);
+            console.warn(`⚠️ [ATC - Meus Cadastros] Google Sheets vazio!`);
+            allCadastros = [];
           }
         }
       } catch (error) {
-        console.error(`❌ [Meus Cadastros] Erro ao buscar do Google Sheets, usando localStorage:`, error);
-        const localCadastros = await getCadastros();
-        allCadastros = isCoord
-          ? localCadastros.filter(c => !c.deletado)
-          : localCadastros.filter(c => c.atcEmail === user.email && !c.deletado);
+        console.error(`❌ [Meus Cadastros] Erro ao buscar do Google Sheets:`, error);
+        allCadastros = [];
       }
       
       // Converter para novo formato
@@ -312,6 +334,13 @@ export default function HomeScreen() {
     });
     setFilteredCadastros(filtered);
   }, [searchQuery, cadastros]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE));
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [filteredCadastros.length, currentPage, PAGE_SIZE]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -476,9 +505,10 @@ export default function HomeScreen() {
       <View className="bg-surface rounded-lg border border-border overflow-hidden shadow-md">
         {/* Header: Canal - Unidade - UF + ID */}
         <View className="bg-gradient-to-r from-blue-900 to-gray-800 px-3 py-2 border-b border-border">
-          <View className="flex-row items-center justify-between">
+          {/* Linha 1: Canal - Unidade - UF + ID */}
+          <View className="flex-row items-center justify-between mb-1">
             <Text className="text-sm font-bold text-white flex-1" numberOfLines={1}>
-              {item.canal} • {item.unidade} • {item.estado}
+              {item.canal} - {item.unidade} - {item.estado}
             </Text>
             <View className="bg-primary rounded px-2 py-0.5 ml-2">
               <Text className="text-xs font-bold text-white">
@@ -486,15 +516,21 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
-          <Text className="text-xs text-gray-300 mt-0.5" numberOfLines={1}>
-            {item.atcNome}
-          </Text>
-          <Text className="text-xs text-gray-400 mt-0.5">
-            criado: {createdDate}
-          </Text>
+          
+          {/* Linha 2: Nome ATC - Data Criação */}
+          <View className="flex-row items-center gap-2 mb-0.5">
+            <Text className="text-xs text-gray-300" numberOfLines={1}>
+              {item.atcNome}
+            </Text>
+            <Text className="text-xs text-gray-400">
+              - {createdDate}
+            </Text>
+          </View>
+          
+          {/* Linha 3: Data Edição (se houver) */}
           {editedDate && (
-            <Text className="text-xs text-cyan-300 mt-0.5">
-              editado: {editedDate}
+            <Text className="text-xs text-cyan-300">
+              Editado em: {editedDate}
             </Text>
           )}
         </View>
@@ -683,13 +719,13 @@ export default function HomeScreen() {
 
           {/* Contador */}
           <Text className="text-sm text-muted">
-            {filteredCadastros.length} cadastro(s){pendingCount ? ` • ${pendingCount} pendente(s)` : ""}
+            {filteredCadastros.length} cadastro(s){pendingCount ? ` • ${pendingCount} pendente(s)` : ""} • Página {Math.min(currentPage, Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE)))} de {Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE))}
           </Text>
         </View>
 
         {/* Lista em Grid de 2 colunas */}
         <FlatList
-          data={filteredCadastros}
+          data={filteredCadastros.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)}
           renderItem={({ item }) => (
             <View className="w-1/2 px-2 mb-4">
               {renderCadastroCard({ item })}
@@ -713,6 +749,44 @@ export default function HomeScreen() {
                   : "Nenhum cadastro ainda.\nToque no + para adicionar."}
               </Text>
             </View>
+          }
+          ListFooterComponent={
+            filteredCadastros.length > 0 ? (
+              <View className="w-full items-center mt-2 mb-6">
+                <Text className="text-xs text-muted mb-2">
+                  Mostrando {filteredCadastros.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredCadastros.length)} de {filteredCadastros.length}
+                </Text>
+                <View className="flex-row items-center gap-3">
+                  <TouchableOpacity
+                    className={`px-4 py-2 rounded-full border ${
+                      currentPage === 1 ? "border-border opacity-50" : "border-primary"
+                    }`}
+                    onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <Text className={currentPage === 1 ? "text-muted" : "text-primary"}>Anterior</Text>
+                  </TouchableOpacity>
+
+                  <View className="px-3 py-2 rounded-full border border-border bg-surface">
+                    <Text className="text-xs text-foreground">
+                      {Math.min(currentPage, Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE)))} / {Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE))}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    className={`px-4 py-2 rounded-full border ${
+                      currentPage >= Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE))
+                        ? "border-border opacity-50"
+                        : "border-primary"
+                    }`}
+                    onPress={() => setCurrentPage((p) => p + 1)}
+                    disabled={currentPage >= Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE))}
+                  >
+                    <Text className={currentPage >= Math.max(1, Math.ceil(filteredCadastros.length / PAGE_SIZE)) ? "text-muted" : "text-primary"}>Próxima</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null
           }
         />
 

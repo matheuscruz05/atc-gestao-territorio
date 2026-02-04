@@ -32,7 +32,7 @@ import type {
   HistoricoEdicao,
   CategoriaData,
 } from "@/types/models";
-import { CATEGORIAS } from "@/types/models";
+import { CATEGORIAS, PRODUTOS_CATALOGO } from "@/types/models";
 import { Picker } from "@react-native-picker/picker";
 
 export default function NovoCadastroScreen() {
@@ -116,7 +116,7 @@ export default function NovoCadastroScreen() {
       }
     }
     loadData();
-  }, [editId, defaultsApplied]);
+  }, [defaultsApplied]); // Removido editId das dependências para evitar conflito com loadForEdit
 
   // Se vier editId, carregar cadastro existente
   useEffect(() => {
@@ -154,63 +154,156 @@ export default function NovoCadastroScreen() {
         
         if (found) {
           console.log(`[Novo Cadastro] ✅ Preenchendo formulário com dados do cadastro...`);
+          console.log(`[Novo Cadastro] 📍 found.cadastroId: ${found.cadastroId}`);
+          console.log(`[Novo Cadastro] 📊 found.categorias length: ${found.categorias?.length || "undefined"}`);
+          console.log(`[Novo Cadastro] 🔍 found.categoria (antigo): ${found.categoria || "undefined"}`);
+          console.log(`[Novo Cadastro] 🔍 PRODUTOS_CATALOGO.length: ${PRODUTOS_CATALOGO.length}`);
+          console.log(`[Novo Cadastro] 🔍 CATEGORY_ORDER:`, CATEGORY_ORDER);
+          
+          if (found.categorias && found.categorias.length > 0) {
+            console.log(`[Novo Cadastro] 🔍 Primeiras 3 categorias:`, found.categorias.slice(0, 3).map(c => ({
+              categoria: c.categoria,
+              produtoRef: c.produtoRef,
+              implantado: c.implantado,
+              potencialAtingido: c.potencialAtingido,
+              potencialTotal: c.potencialTotal,
+            })));
+          }
+          
+          console.log(`[Novo Cadastro] 📝 Definindo estados de canal, unidade, estado...`);
           setCanal(found.canal);
           setUnidade(found.unidade);
           setEstado(found.estado);
           setOriginalAtcEmail(found.atcEmail);
           setOriginalAtcNome(found.atcNome);
+          console.log(`[Novo Cadastro] ✅ Estados definidos com sucesso`);
           
           // Se tem categorias (novo formato)
-          if (found.categorias && found.categorias.length > 0) {
+          console.log(`[Novo Cadastro] 🔍 Verificando se tem categorias (novo formato)...`);
+          if (found.categorias && Array.isArray(found.categorias) && found.categorias.length > 0) {
+            console.log(`[Novo Cadastro] ✅ TEM categorias (novo formato)! Total: ${found.categorias.length}`);
             console.log(`[Novo Cadastro] 📦 Cadastro tem ${found.categorias.length} categorias (novo formato)`);
-            // Garantir que categorias antigas sejam migradas
+            console.log(`[Novo Cadastro] 📋 Primeiras categorias:`, found.categorias.slice(0, 3).map(c => ({
+              categoria: c.categoria,
+              produtoRef: c.produtoRef,
+              implantado: c.implantado,
+              potencialAtingido: c.potencialAtingido,
+              potencialTotal: c.potencialTotal,
+              concorrentes: c.concorrentes,
+              observacao: c.observacao,
+            })));
+            // IMPORTANTE: Preservar TODOS os dados dos produtos salvos anteriormente
+            // Mapear os dados de found.categorias para categoriasData, mantendo valores reais
             const migrated = found.categorias.map(cat => ({
               ...cat,
               safra: cat.safra ?? "Verão",
+              // CRÍTICO: Preservar potenciais reais - não substituir por 0 se já têm valor!
               potencialAtingido: cat.potencialAtingido ?? (cat.implantado === "Sim" ? (cat.potencialValor || 0) : 0),
               potencialTotal: cat.potencialTotal ?? (cat.potencialValor || 0),
+              // CRÍTICO: Preservar concorrentes e observacao salvos
+              concorrentes: cat.concorrentes ?? "",
+              observacao: cat.observacao ?? "",
             }));
-            setCategoriasData(migrated);
-          } else {
-            console.log(`[Novo Cadastro] 📦 Cadastro em formato antigo, convertendo...`);
-            // Formato antigo - converter
-            if (found.categoria) {
-              const oldData: CategoriaData = {
-                categoria: found.categoria,
-                produtoRef: found.produtoRef || "",
-                produtoNomeLivre: found.produtoNomeLivre || "",
-                unidadePotencial: found.unidadePotencial || "tons",
-                implantado: found.implantado || "Não",
-                safra: "Verão",
-                potencialAtingido: found.implantado === "Sim" ? (found.potencialValor || 0) : 0,
-                potencialTotal: found.potencialValor || 0,
-                concorrentes: found.concorrentes || "",
-                observacao: found.observacao || "",
-              };
-              const newCategorias = CATEGORIAS.map((cat) =>
-                cat === found.categoria
-                  ? oldData
-                  : {
-                      categoria: cat,
-                      produtoRef: "",
+            
+            // IMPORTANTE: Se o cadastro tem menos produtos do que os disponíveis,
+            // adicionar os produtos faltantes para permitir edição completa
+            const totalProdutosCatalogo = PRODUTOS_CATALOGO.length;
+            console.log(`[Novo Cadastro] 📊 Produtos no cadastro: ${migrated.length}, Produtos no catálogo: ${totalProdutosCatalogo}`);
+            
+            if (migrated.length < totalProdutosCatalogo) {
+              console.log(`[Novo Cadastro] 📝 Cadastro tem ${migrated.length} produtos, mas catálogo tem ${totalProdutosCatalogo}`);
+              console.log(`[Novo Cadastro] 📝 Adicionando produtos faltantes para permitir edição...`);
+              
+              // Obter IDs dos produtos já existentes no cadastro
+              const existingProductIds = new Set(migrated.map(c => c.produtoRef));
+              
+              // Adicionar produtos que não existem no cadastro usando PRODUTOS_CATALOGO diretamente
+              CATEGORY_ORDER.forEach((cat) => {
+                PRODUTOS_CATALOGO
+                  .filter((p) => p.categoria === cat && !existingProductIds.has(p.produtoId))
+                  .forEach((p) => {
+                    console.log(`[Novo Cadastro] ➕ Adicionando produto faltante: ${p.produto} (${p.categoria})`);
+                    migrated.push({
+                      categoria: p.categoria,
+                      produtoRef: p.produtoId,
                       produtoNomeLivre: "",
-                      unidadePotencial: "tons" as const,
-                      implantado: "Não" as Implantado,
-                      safra: "Verão" as const,
+                      unidadePotencial: p.unidadePotencial,
+                      implantado: "Não",
+                      safra: "Verão",
                       potencialAtingido: 0,
                       potencialTotal: 0,
                       concorrentes: "",
                       observacao: "",
-                    }
-              );
-              setCategoriasData(newCategorias);
+                    });
+                  });
+              });
+              
+              console.log(`[Novo Cadastro] ✅ Total após adicionar faltantes: ${migrated.length} produtos`);
             }
+            
+            console.log(`[Novo Cadastro] ✅ Migradas ${migrated.length} categorias com dados preservados`);
+            console.log(`[Novo Cadastro] 📊 Verificando dados:`, migrated.slice(0, 3).map(c => ({
+              produto: c.produtoRef,
+              implantado: c.implantado,
+              potencialAtingido: c.potencialAtingido,
+              concorrentes: c.concorrentes?.substring(0, 20),
+            })));
+            console.log(`[Novo Cadastro] 🚀 CHAMANDO setCategoriasData com ${migrated.length} categorias...`);
+            setCategoriasData(migrated);
+            console.log(`[Novo Cadastro] ✅ setCategoriasData EXECUTADO!`);
+          } else if (found.categoria) {
+            console.log(`[Novo Cadastro] 📦 Cadastro em formato antigo, convertendo...`);
+            // Formato antigo - converter
+            const oldData: CategoriaData = {
+              categoria: found.categoria,
+              produtoRef: found.produtoRef || "",
+              produtoNomeLivre: found.produtoNomeLivre || "",
+              unidadePotencial: found.unidadePotencial || "tons",
+              implantado: found.implantado || "Não",
+              safra: "Verão",
+              potencialAtingido: found.implantado === "Sim" ? (found.potencialValor || 0) : 0,
+              potencialTotal: found.potencialValor || 0,
+              concorrentes: found.concorrentes || "",
+              observacao: found.observacao || "",
+            };
+            const newCategorias = CATEGORIAS.map((cat) =>
+              cat === found.categoria
+                ? oldData
+                : {
+                    categoria: cat,
+                    produtoRef: "",
+                    produtoNomeLivre: "",
+                    unidadePotencial: "tons" as const,
+                    implantado: "Não" as Implantado,
+                    safra: "Verão" as const,
+                    potencialAtingido: 0,
+                    potencialTotal: 0,
+                    concorrentes: "",
+                    observacao: "",
+                  }
+            );
+            setCategoriasData(newCategorias);
+          } else {
+            // Fallback: se não tem categorias válidas, inicializar com defaults vazios BASEADO EM PRODUTOS
+            console.log(`[Novo Cadastro] 📦 Cadastro sem categorias válidas, reconstruindo com buildCategoriasFromProdutos...`);
+            console.log(`[Novo Cadastro] 📦 Cadastro tem: categorias=${found.categorias}, categoria=${found.categoria}`);
+            
+            // Chamar loadData para ter os produtos disponíveis
+            const produtosData = await getProdutos();
+            const defaults = buildCategoriasFromProdutos(produtosData);
+            
+            console.log(`[Novo Cadastro] ✅ Reconstruído com ${defaults.length} categorias (buildCategoriasFromProdutos)`);
+            setCategoriasData(defaults);
+            console.error(`[Novo Cadastro] ⚠️ Fallback usado: Cadastro sem categorias válidas. Recomendação: Re-salvar o cadastro para atualizar no Google Sheets`);
           }
           
           setIsEditing(true);
           setEditingId(found.cadastroId);
           setOriginalCreatedEm(found.criadoEm || null);
           console.log(`[Novo Cadastro] ✅ Modo de edição ativado!`);
+        } else {
+          console.error(`[Novo Cadastro] ❌ CADASTRO NÃO ENCONTRADO! editId: ${editId}`);
+          console.error(`[Novo Cadastro] ❌ Tentou buscar do Sheets e localStorage mas found === undefined`);
         }
       } catch (error) {
         console.error("❌ Erro geral ao carregar cadastro para edição:", error);
@@ -378,7 +471,7 @@ export default function NovoCadastroScreen() {
       console.log(`  - atcEmail: ${novoCadastro.atcEmail}`);
       console.log(`  - atcNome: ${novoCadastro.atcNome}`);
       console.log(`  - categorias: ${novoCadastro.categorias.length}`);
-      console.log(`  - historico: ${novoCadastro.historico.length}`);
+      console.log(`  - historico: ${novoCadastro.historico?.length || 0}`);
       console.log(`  - editadoEm: ${novoCadastro.editadoEm}`);
 
       // Salvar localmente
@@ -397,8 +490,8 @@ export default function NovoCadastroScreen() {
       if (syncResult.error) {
         console.error(`  - error: ${syncResult.error}`);
       }
-      if (syncResult.details) {
-        console.error(`  - details: ${JSON.stringify(syncResult.details)}`);
+      if ((syncResult as any).details) {
+        console.error(`  - details: ${JSON.stringify((syncResult as any).details)}`);
       }
 
       if (syncResult.success) {
@@ -483,8 +576,8 @@ export default function NovoCadastroScreen() {
 
   return (
     <ScreenContainer>
-      <ScrollView className="flex-1">
-        <View className="p-6 gap-4">
+      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+        <View className="p-6 gap-4 pb-8">
           {/* Header */}
           <View className="flex-row items-center gap-4 mb-2">
             <TouchableOpacity onPress={() => router.back()}>
@@ -573,13 +666,23 @@ export default function NovoCadastroScreen() {
           </View>
 
           {/* Separador */}
-          <View className="border-t border-border mt-4" />
-          <Text className="text-lg font-bold text-foreground">
+          <View className="border-t border-border mt-4 pt-4" />
+          <Text className="text-lg font-bold text-foreground mb-4">
             Categorias de Produtos
           </Text>
 
+          {/* Debug: mostrar número de categorias */}
+          {categoriasData.length === 0 && (
+            <View className="bg-yellow-900 border border-yellow-500 rounded-lg p-4 mb-4">
+              <Text className="text-yellow-300 font-semibold">
+                ⚠️ Nenhuma categoria carregada. Categorias: {categoriasData.length}
+              </Text>
+            </View>
+          )}
+
           {/* Seções para cada categoria */}
-          {categoriasData.map((catData, index) => (
+          {categoriasData.length > 0 ? (
+            categoriasData.map((catData, index) => (
             <View
               key={`${catData.categoria}-${index}`}
               className="bg-surface border border-border rounded-lg p-4 gap-4"
@@ -927,7 +1030,14 @@ export default function NovoCadastroScreen() {
                 />
               </View>
             </View>
-          ))}
+            ))
+          ) : (
+            <View className="bg-background border border-border rounded-lg p-4">
+              <Text className="text-muted text-center">
+                Nenhuma categoria disponível. Carregando...
+              </Text>
+            </View>
+          )}
 
           {/* Botão Salvar */}
           <TouchableOpacity

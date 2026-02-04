@@ -33,8 +33,8 @@ import {
   deleteCadastroFromSheets,
 } from "@/lib/google-sheets-sync";
 import { confirmAction } from "@/lib/confirm";
-import type { Usuario, Produto, Canal, Unidade, Cadastro, Categoria, CategoriaData, Implantado } from "@/types/models";
-import { CATEGORIAS } from "@/types/models";
+import type { Usuario, Produto, Canal, Unidade, Cadastro, Categoria, CategoriaData, Implantado, Safra } from "@/types/models";
+import { CATEGORIAS, PRODUTOS_CATALOGO } from "@/types/models";
 import { DashboardCard } from "@/components/dashboard-card";
 import { DashboardChartBar } from "@/components/dashboard-chart-bar";
 import { DashboardCompetitorsChart } from "@/components/dashboard-competitors-chart";
@@ -125,7 +125,7 @@ export default function AdminScreen() {
               produtoNomeLivre: "",
               unidadePotencial: "tons" as const,
               implantado: "Não" as Implantado,
-              safra: "Verão" as const,
+              safra: "Verão" as Safra,
               potencialAtingido: 0,
               potencialTotal: 0,
               concorrentes: "",
@@ -148,7 +148,7 @@ export default function AdminScreen() {
         produtoNomeLivre: "",
         unidadePotencial: "tons" as const,
         implantado: "Não" as Implantado,
-        safra: "Verão" as const,
+        safra: "Verão" as Safra,
         potencialAtingido: 0,
         potencialTotal: 0,
         concorrentes: "",
@@ -328,7 +328,7 @@ export default function AdminScreen() {
           canal: cad.canal, 
           unidade: cad.unidade,
           // Garantir migração de dados antigos
-          safra: cat.safra ?? "Verão",
+          safra: (cat.safra ?? "Verão") as Safra,
           potencialAtingido: cat.potencialAtingido ?? (cat.implantado === "Sim" ? (cat.potencialValor || 0) : 0),
           potencialTotal: cat.potencialTotal ?? (cat.potencialValor || 0),
         }));
@@ -340,7 +340,7 @@ export default function AdminScreen() {
           produtoNomeLivre: cad.produtoNomeLivre || "",
           unidadePotencial: cad.unidadePotencial || "tons",
           implantado: cad.implantado || "Não",
-          safra: "Verão",
+          safra: "Verão" as Safra,
           potencialAtingido: cad.implantado === "Sim" ? (cad.potencialValor || 0) : 0,
           potencialTotal: cad.potencialValor || 0,
           concorrentes: cad.concorrentes || "",
@@ -1527,39 +1527,118 @@ export default function AdminScreen() {
         return sum;
       }, 0);
 
-      // Mapa de nomes abreviados das categorias
+      // Mapa para nomes amigáveis das categorias (conforme ATC)
       const categoryNamesMap: Record<string, string> = {
-        "FERTILIZANTE - BASE": "FERT. BASE",
-        "FERTILIZANTES - COBERTURA": "FERT. COBERTURA",
-        "BIOLÓGICOS - INOCULANTES": "INOCULANTES",
-        "BIOLÓGICOS - FOLIARES": "FOLIARES",
+        "FERTILIZANTE": "FERT. BASE",
+        "FERTILIZANTES": "FERT. COBERTURA",
+        "BIOLÓGICOS": "INOCULANTES",
         "HIDROSSOLÚVEIS": "HIDROSSOLÚVEIS",
       };
 
-      // Mapa de nomes abreviados dos produtos
-      const produtoNomeMap: Record<string, string> = {
-        "MICROESSENTIALS": "MICROESSENTIALS",
-        "PBIO": "PBIO",
-        "PPLUS": "PPLUS",
-        "PNEO": "PNEO",
-        "POWER_COAT": "POWER COAT",
-        "ASPIRE": "ASPIRE",
-        "PULTRA": "PULTRA",
-        "MBIO_PHOS": "MBIO PHOS",
-        "MBIO_HIDRO": "MBIO HIDRO",
-        "MBIO_STIMULLUS": "MBIO STIMULLUS",
-        "REFIRMA_CYBELION": "REFIRMA CYBELION",
-        "MBIO_FLORESCE": "MBIO FLORESCE",
-        "NITRATO_CALCIO": "NITRATO CÁL.",
-        "MAP_PUTRIFICADO": "MAP PURIF.",
-      };
-
       const getCategoryDisplayName = (fullCategory: string): string => {
+        if (fullCategory.includes(" - ")) {
+          const parts = fullCategory.split(" - ");
+          const afterDash = parts[1];
+          if (afterDash === "FOLIARES") return "FOLIARES";
+          if (afterDash === "INOCULANTES") return "INOCULANTES";
+          if (afterDash === "BASE") return "FERT. BASE";
+          if (afterDash === "COBERTURA") return "FERT. COBERTURA";
+          return afterDash;
+        }
         return categoryNamesMap[fullCategory] || fullCategory;
       };
 
+      // Helper para obter o nome legível do produto pelo produtoRef
       const getProdutoNome = (produtoRef: string): string => {
-        return produtoNomeMap[produtoRef] || produtoRef || "Sem produto";
+        const produtoNomeMap: Record<string, string> = {
+          "MICROESSENTIALS": "MICROESSENTIALS",
+          "PBIO": "PBIO",
+          "PPLUS": "PPLUS",
+          "PNEO": "PNEO",
+          "POWER_COAT": "POWER COAT",
+          "ASPIRE": "ASPIRE",
+          "PULTRA": "PULTRA",
+          "MBIO_PHOS": "MBIO PHOS",
+          "MBIO_HIDRO": "MBIO HIDRO",
+          "MBIO_STIMULLUS": "MBIO STIMULLUS",
+          "REFIRMA_CYBELION": "REFIRMA CYBELION",
+          "MBIO_FLORESCE": "MBIO FLORESCE",
+          "NITRATO_CALCIO": "NITRATO CÁLCIO",
+          "MAP_PUTRIFICADO": "MAP PURIF.",
+        };
+
+        if (produtoRef in produtoNomeMap) {
+          return produtoNomeMap[produtoRef];
+        }
+
+        if (produtoRef === "HIDRO_LIVRE") {
+          return "Produto não especificado";
+        }
+
+        const produto = PRODUTOS_CATALOGO.find(p => p.produtoId === produtoRef);
+        return produto ? produto.produto : produtoRef || "Sem produto";
+      };
+
+      // Helper: Garantir que estado seja apenas UF (2 letras)
+      const getEstadoUF = (estado: string): string => {
+        if (!estado) return 'N/A';
+        // Se parece com uma data ISO, retornar N/A
+        if (estado.includes('T') || estado.includes('-') && estado.length > 3) {
+          return 'N/A';
+        }
+        // Retornar apenas os primeiros 2 caracteres em uppercase
+        return estado.substring(0, 2).toUpperCase();
+      };
+
+      const createdDate = cadastro.criadoEm
+        ? new Date(cadastro.criadoEm).toLocaleDateString("pt-BR")
+        : "Data desconhecida";
+      const editedDate = cadastro.editadoEm && cadastro.editadoEm.trim()
+        ? new Date(cadastro.editadoEm).toLocaleString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : null;
+
+      const hasNewFormat = cadastro.categorias && cadastro.categorias.length > 0;
+
+      const agruparCategoriasPorTipo = (categorias: CategoriaData[]) => {
+        const agrupado: { [key: string]: CategoriaData[] } = {};
+        categorias.forEach((cat) => {
+          const tipo = cat.categoria.split(" - ")[0];
+          if (!agrupado[tipo]) agrupado[tipo] = [];
+          agrupado[tipo].push(cat);
+        });
+        return agrupado;
+      };
+
+      const categoriasAgrupadas = hasNewFormat
+        ? agruparCategoriasPorTipo(categoriasCadastro as CategoriaData[])
+        : {};
+
+      // Barra de progresso visual inteligente - mostra atingido + real
+      const ProgressBar = ({ atingido, total, height = 8 }: { atingido: number; total: number; height?: number }) => {
+        const percentualAtingido = total > 0 ? Math.min((atingido / total) * 100, 100) : 0;
+
+        return (
+          <View className="flex-1">
+            <View className="w-full bg-gray-800 rounded-full overflow-hidden" style={{ height }}>
+              <View className="flex-row h-full">
+                <View
+                  className="bg-gradient-to-r from-blue-500 to-blue-600"
+                  style={{ width: `${percentualAtingido}%` }}
+                />
+                <View
+                  className="bg-gradient-to-r from-orange-400 to-orange-500"
+                  style={{ width: `${100 - percentualAtingido}%` }}
+                />
+              </View>
+            </View>
+          </View>
+        );
       };
 
       return (
@@ -1568,7 +1647,7 @@ export default function AdminScreen() {
           <View className="bg-gradient-to-r from-blue-900 to-gray-800 px-3 py-2 border-b border-border">
             <View className="flex-row items-center justify-between mb-1">
               <Text className="text-sm font-bold text-white flex-1" numberOfLines={1}>
-                {cadastro.canal} • {cadastro.unidade} • {cadastro.estado}
+                {cadastro.canal || "N/A"} - {cadastro.unidade || "N/A"} - {getEstadoUF(cadastro.estado)}
               </Text>
               <View className="bg-primary rounded px-2 py-0.5 ml-2">
                 <Text className="text-xs font-bold text-white">
@@ -1576,128 +1655,187 @@ export default function AdminScreen() {
                 </Text>
               </View>
             </View>
-            <Text className="text-xs text-gray-300" numberOfLines={1}>
-              {cadastro.atcNome}
-            </Text>
-            <Text className="text-xs text-gray-400 mt-0.5">
-              criado: {cadastro.criadoEm ? new Date(cadastro.criadoEm).toLocaleDateString("pt-BR") : "Data desconhecida"}
-            </Text>
-            {cadastro.editadoEm && (
-              <Text className="text-xs text-cyan-300 mt-0.5">
-                editado: {new Date(cadastro.editadoEm).toLocaleString("pt-BR", { 
-                  day: '2-digit', 
-                  month: '2-digit', 
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit' 
-                })}
+
+            <View className="flex-row items-center gap-2 mb-0.5">
+              <Text className="text-xs text-gray-300" numberOfLines={1}>
+                {cadastro.atcNome}
               </Text>
+              <Text className="text-xs text-gray-400">- {createdDate}</Text>
+            </View>
+
+            {editedDate && (
+              <Text className="text-xs text-cyan-300">Editado em: {editedDate}</Text>
             )}
           </View>
 
-          {/* Resumo de Potenciais */}
-          <View className="px-3 py-2 flex-row gap-2 border-b border-border bg-gray-900 bg-opacity-50">
-            <View className="bg-blue-500 bg-opacity-20 px-2 py-1 rounded border border-blue-500 border-opacity-30">
-              <Text className="text-xs font-bold text-blue-400">
-                {potentialTons.toFixed(0)}t
-              </Text>
-            </View>
-            <View className="bg-orange-500 bg-opacity-20 px-2 py-1 rounded border border-orange-500 border-opacity-30">
-              <Text className="text-xs font-bold text-orange-400">
-                {potentialLitros.toFixed(0)}L
-              </Text>
-            </View>
-          </View>
-
-          {/* Lista de Produtos */}
-          <View className="p-2 gap-0.5">
-            {categoriasCadastro && categoriasCadastro.length > 0 && (
-              <View className="gap-0.5">
-                {categoriasCadastro.map((catData: any, idx: number) => {
-                  const completa = isCategoriaCompleta(catData);
-                  const statusIcon = completa ? "✓" : "?";
-                  const statusColor = completa ? "text-green-400" : "text-yellow-400";
-                  const totalPot = normalizePotential(catData.potencialTotal || catData.potencialValor);
-                  const atingidoPot = normalizePotential(catData.potencialAtingido);
-                  const realPot = Math.max(totalPot - atingidoPot, 0);
-                  const safraIcon = catData.safra === "Inverno" ? "❄️" : "☀️";
-                  const produtoNome = getProdutoNome(catData.produtoRef);
-
-                  return (
-                    <View key={idx} className="flex-row items-center gap-1">
-                      {/* Status */}
-                      <Text className={`text-xs font-bold ${statusColor} w-4`}>
-                        {statusIcon}
+          {hasNewFormat ? (
+            <View className="p-3 gap-2">
+              <View className="flex-row items-center justify-between gap-1.5 mb-1">
+                <View className="flex-row gap-2">
+                  <View className="bg-blue-500 bg-opacity-20 px-2 py-1 rounded border border-blue-500 border-opacity-30">
+                    <Text className="text-xs font-bold text-blue-400">
+                      {potentialTons.toFixed(0)}t
+                    </Text>
+                  </View>
+                  {potentialLitros > 0 && (
+                    <View className="bg-orange-500 bg-opacity-20 px-2 py-1 rounded border border-orange-500 border-opacity-30">
+                      <Text className="text-xs font-bold text-orange-400">
+                        {potentialLitros.toFixed(0)}L
                       </Text>
-                      
-                      {/* Categoria + Produto + Safra */}
-                      <View className="flex-row items-center gap-0.5 flex-shrink-0">
-                        <Text className="text-xs font-bold text-foreground" numberOfLines={1}>
-                          {getCategoryDisplayName(catData.categoria)}:
-                        </Text>
-                        <Text className="text-xs text-cyan-300" numberOfLines={1}>
-                          {produtoNome}
-                        </Text>
-                        <Text className="text-xs">
-                          {safraIcon}
-                        </Text>
-                      </View>
-                      
-                      {/* Potencial Atingido + Real */}
-                      <View className="flex-row gap-1 ml-auto">
-                        <Text className="text-xs text-blue-400 font-semibold">
-                          {atingidoPot.toFixed(0)}
-                        </Text>
-                        <Text className="text-xs text-orange-400 font-semibold">
-                          {realPot.toFixed(0)}
-                        </Text>
-                      </View>
                     </View>
-                  );
-                })}
+                  )}
+                </View>
+
+                <View className="flex-row gap-1">
+                  <TouchableOpacity
+                    className="bg-blue-600 rounded px-2.5 py-1 items-center justify-center active:opacity-80"
+                    onPress={() => {
+                      console.log("[Admin] Editar cadastro", cadastro.cadastroId);
+                      router.push(`/novo-cadastro?editId=${encodeURIComponent(cadastro.cadastroId)}` as any);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text className="text-white font-semibold text-[10px]">✏️ Editar</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    className="bg-red-600 rounded px-2.5 py-1 items-center justify-center active:opacity-80"
+                    onPress={async () => {
+                      const confirmed = await confirmAction(`Excluir ${cadastro.canal}?`, "Excluir");
+                      if (!confirmed) return;
+
+                      try {
+                        const updated = cadastros.map((c) =>
+                          c.cadastroId === cadastro.cadastroId
+                            ? { ...c, deletado: true }
+                            : c
+                        );
+                        await setCadastrosLocal(updated);
+                        setCadastros(updated);
+                        console.log("[Admin] Excluir cadastro", cadastro.cadastroId);
+                        await deleteCadastroFromSheets(cadastro.cadastroId);
+                        toast.show("success", "✅ Excluído", "");
+                      } catch (e) {
+                        toast.show("error", "❌ Erro", String(e));
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text className="text-white font-semibold text-[10px]">🗑️ Excluir</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            )}
-          </View>
 
-          {/* Botões Compactos */}
-          <View className="flex-row gap-1.5 border-t border-border p-2">
-            <TouchableOpacity
-              className="flex-1 bg-primary rounded py-1.5 items-center active:opacity-80"
-              onPress={() => {
-                console.log("[Admin] Editar cadastro", cadastro.cadastroId);
-                router.push(`/novo-cadastro?editId=${encodeURIComponent(cadastro.cadastroId)}` as any);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text className="text-white text-xs font-semibold">✏️ Editar</Text>
-            </TouchableOpacity>
+              <View className="h-px bg-gray-700 my-1" />
 
-            <TouchableOpacity
-              className="flex-1 bg-error rounded py-1.5 items-center active:opacity-80"
-              onPress={async () => {
-                const confirmed = await confirmAction(`Excluir ${cadastro.canal}?`, "Excluir");
-                if (!confirmed) return;
+              <View className="gap-1">
+                {Object.entries(categoriasAgrupadas).map(([tipo, cats]) => (
+                  <View key={tipo}>
+                    {cats.map((cat, idx) => {
+                      const produtoNome = getProdutoNome(cat.produtoRef);
+                      const statusIcon = cat.implantado === "Sim" ? "✓" : "?";
+                      const statusColor = cat.implantado === "Sim" ? "text-green-400" : "text-yellow-400";
+                      const totalPot = normalizePotential(cat.potencialTotal || cat.potencialValor);
+                      const atingidoPot = normalizePotential(cat.potencialAtingido);
+                      const realPot = Math.max(totalPot - atingidoPot, 0);
+                      const safraIcon = cat.safra === "Inverno" ? "❄️" : "☀️";
 
-                try {
-                  const updated = cadastros.map((c) =>
-                    c.cadastroId === cadastro.cadastroId
-                      ? { ...c, deletado: true }
-                      : c
-                  );
-                  await setCadastrosLocal(updated);
-                  setCadastros(updated);
-                  console.log("[Admin] Excluir cadastro", cadastro.cadastroId);
-                  await deleteCadastroFromSheets(cadastro.cadastroId);
-                  toast.show("success", "✅ Excluído", "");
-                } catch (e) {
-                  toast.show("error", "❌ Erro", String(e));
-                }
-              }}
-              activeOpacity={0.8}
-            >
-              <Text className="text-white text-xs font-semibold">🗑️ Excluir</Text>
-            </TouchableOpacity>
-          </View>
+                      return (
+                        <View key={idx} className="flex-row items-center gap-1">
+                          <Text className={`text-xs font-bold ${statusColor}`}>{statusIcon}</Text>
+
+                          <View className="flex-row items-center gap-1 flex-shrink-0">
+                            <Text className="text-xs font-bold text-foreground" numberOfLines={1}>
+                              {getCategoryDisplayName(cat.categoria)}:
+                            </Text>
+                            <Text className="text-xs text-cyan-300" numberOfLines={1}>
+                              {produtoNome}
+                            </Text>
+                            <Text className="text-xs">{safraIcon}</Text>
+                          </View>
+
+                          <View className="flex-1 flex-row items-center gap-1">
+                            <View className="flex-1 relative">
+                              <ProgressBar atingido={atingidoPot} total={totalPot} height={10} />
+                              <View className="absolute left-1 top-0 bottom-0 justify-center">
+                                <Text
+                                  className="text-xs font-bold text-white"
+                                  style={{
+                                    textShadowColor: "rgba(0,0,0,0.8)",
+                                    textShadowOffset: { width: 0, height: 0 },
+                                    textShadowRadius: 2,
+                                  }}
+                                >
+                                  {atingidoPot.toFixed(0)}
+                                </Text>
+                              </View>
+                            </View>
+                            <Text className="text-xs font-bold text-orange-400 min-w-[30px] text-right">
+                              {realPot.toFixed(0)}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : (
+            <View className="p-3 gap-2">
+              <Text className="text-xs font-semibold text-foreground">
+                {cadastro.categoria || "N/A"}
+              </Text>
+              <View className="flex-row items-center gap-2">
+                <View className={`px-3 py-1 rounded-full ${cadastro.implantado === "Sim" ? "bg-emerald-500" : "bg-amber-500"}`}>
+                  <Text className="text-xs font-semibold text-white">
+                    {cadastro.implantado}
+                  </Text>
+                </View>
+                <Text className="text-xs font-medium text-foreground">
+                  {cadastro.potencialValor} {cadastro.unidadePotencial}
+                </Text>
+              </View>
+              <View className="flex-row gap-1">
+                <TouchableOpacity
+                  className="bg-blue-600 rounded px-2.5 py-1 items-center justify-center active:opacity-80"
+                  onPress={() => {
+                    console.log("[Admin] Editar cadastro", cadastro.cadastroId);
+                    router.push(`/novo-cadastro?editId=${encodeURIComponent(cadastro.cadastroId)}` as any);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-white font-semibold text-[10px]">✏️ Editar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  className="bg-red-600 rounded px-2.5 py-1 items-center justify-center active:opacity-80"
+                  onPress={async () => {
+                    const confirmed = await confirmAction(`Excluir ${cadastro.canal}?`, "Excluir");
+                    if (!confirmed) return;
+
+                    try {
+                      const updated = cadastros.map((c) =>
+                        c.cadastroId === cadastro.cadastroId
+                          ? { ...c, deletado: true }
+                          : c
+                      );
+                      await setCadastrosLocal(updated);
+                      setCadastros(updated);
+                      console.log("[Admin] Excluir cadastro", cadastro.cadastroId);
+                      await deleteCadastroFromSheets(cadastro.cadastroId);
+                      toast.show("success", "✅ Excluído", "");
+                    } catch (e) {
+                      toast.show("error", "❌ Erro", String(e));
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-white font-semibold text-[10px]">🗑️ Excluir</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
       );
     };
@@ -1712,21 +1850,21 @@ export default function AdminScreen() {
             <View className="flex-row gap-2">
               <TouchableOpacity
                 className={`flex-1 py-2 rounded-lg border ${
-                  selectedSafraFilter === "TODAS"
+                  selectedSafraFilter === "TODOS"
                     ? "bg-primary border-primary"
                     : "bg-surface border-border"
                 }`}
                 onPress={() => {
-                  setSelectedSafraFilter("TODAS");
+                  setSelectedSafraFilter("TODOS");
                   setPaginaCadastros(1);
                 }}
               >
                 <Text
                   className={`text-center font-semibold ${
-                    selectedSafraFilter === "TODAS" ? "text-white" : "text-foreground"
+                    selectedSafraFilter === "TODOS" ? "text-white" : "text-foreground"
                   }`}
                 >
-                  TODAS
+                  TODOS
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity

@@ -21,6 +21,10 @@ export default function TimelineScreen() {
   const [searchText, setSearchText] = useState("");
   const [selectedSafra, setSelectedSafra] = useState<Safra | "Todas">("Todas");
   const [searchProduto, setSearchProduto] = useState("");
+  
+  // Paginação
+  const PAGE_SIZE = 14;
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     loadData();
@@ -148,6 +152,19 @@ export default function TimelineScreen() {
 
     return filtered;
   }, [timelineData, searchText, selectedSafra, searchProduto]);
+
+  // Calcular paginação
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const endIndex = startIndex + PAGE_SIZE;
+  const paginatedData = filteredData.slice(startIndex, endIndex);
+
+  // Garantir que currentPage não ultrapasse totalPages
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   // Renderizar card de evolução
   const renderTimelineCard = (item: TimelineItem, index: number) => {
@@ -405,7 +422,7 @@ export default function TimelineScreen() {
           />
         </View>
 
-        {/* Lista de cards */}
+        {/* Lista de cards em 2 colunas */}
         {filteredData.length === 0 ? (
           <View className="flex-1 justify-center items-center py-12">
             <Text className="text-4xl mb-3">📊</Text>
@@ -417,10 +434,81 @@ export default function TimelineScreen() {
           </View>
         ) : (
           <>
-            <Text className="text-xs text-gray-400 mb-2">
-              {filteredData.length} {filteredData.length === 1 ? "resultado" : "resultados"}
+            {/* Contador de resultados */}
+            <Text className="text-xs text-gray-400 mb-3">
+              {filteredData.length} {filteredData.length === 1 ? "resultado" : "resultados"} • Página {currentPage} de {totalPages}
             </Text>
-            {filteredData.map((item, index) => renderTimelineCard(item, index))}
+
+            {/* Grid com 2 colunas */}
+            <View className="mb-4">
+              {/* Renderizar em pares de linhas */}
+              {Array.from({ length: Math.ceil(paginatedData.length / 2) }).map((_, rowIndex) => {
+                const leftItem = paginatedData[rowIndex * 2];
+                const rightItem = paginatedData[rowIndex * 2 + 1];
+
+                return (
+                  <View key={rowIndex} className="flex-row gap-3 mb-3">
+                    {/* Card esquerda */}
+                    <View className="flex-1">
+                      {leftItem && renderTimelineCard(leftItem, rowIndex * 2)}
+                    </View>
+
+                    {/* Card direita */}
+                    <View className="flex-1">
+                      {rightItem && renderTimelineCard(rightItem, rowIndex * 2 + 1)}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Paginação - Controles */}
+            <View className="mt-6 mb-4">
+              {/* Botões de navegação */}
+              <View className="flex-row gap-2 justify-center mb-3">
+                <TouchableOpacity
+                  className={`px-4 py-2 rounded ${
+                    currentPage === 1
+                      ? "bg-gray-700 opacity-50"
+                      : "bg-primary"
+                  }`}
+                  onPress={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  activeOpacity={0.8}
+                >
+                  <Text className={`text-sm font-bold ${currentPage === 1 ? "text-gray-500" : "text-white"}`}>
+                    ← Anterior
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Indicador de página */}
+                <View className="bg-gray-800 px-4 py-2 rounded">
+                  <Text className="text-sm font-bold text-gray-300 text-center">
+                    Página {currentPage} de {totalPages}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  className={`px-4 py-2 rounded ${
+                    currentPage === totalPages
+                      ? "bg-gray-700 opacity-50"
+                      : "bg-primary"
+                  }`}
+                  onPress={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  activeOpacity={0.8}
+                >
+                  <Text className={`text-sm font-bold ${currentPage === totalPages ? "text-gray-500" : "text-white"}`}>
+                    Próximo →
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Contador de cards na página */}
+              <Text className="text-xs text-gray-400 text-center">
+                Mostrando {startIndex + 1}–{Math.min(endIndex, filteredData.length)} de {filteredData.length}
+              </Text>
+            </View>
           </>
         )}
       </ScrollView>
