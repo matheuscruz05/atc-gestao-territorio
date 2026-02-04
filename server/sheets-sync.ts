@@ -185,23 +185,28 @@ router.post("/cadastros", async (req, res) => {
     const accessToken = await getAccessToken(sa);
     console.log("[Sheets] ✅ Access token obtido");
 
-    // Preparar dados base (colunas A-G)
-    const baseRow = [
+    // Normalizar categorias
+    const categoriasJson = JSON.stringify(categorias || []);
+
+    // Preparar dados na ORDEM CORRETA (compatível com /create-or-update endpoint)
+    // A: cadastroId, B: atcEmail, C: atcNome, D: canal, E: unidade, F: estado, 
+    // G: criadoEm, H: editadoEm, I: deletado, J: categorias
+    const row = [
       cadastro.cadastroId,
-      cadastro.criadoEm,
       cadastro.atcEmail,
       cadastro.atcNome,
       cadastro.canal,
       cadastro.unidade,
       cadastro.estado,
+      cadastro.criadoEm,
+      cadastro.editadoEm || new Date().toISOString(),
+      cadastro.deletado ? "true" : "false",
+      categoriasJson,
     ];
-
-    // Salvar todas as categorias em JSON (coluna H)
-    const categoriasJson = JSON.stringify(categorias || []);
-    const row = [...baseRow, categoriasJson];
 
     console.log("[Sheets] Preparando dados para envio...");
     console.log("[Sheets] Total de colunas:", row.length);
+    console.log("[Sheets] Categorias a salvar:", categorias.length);
 
     // UPSERT: Verificar se cadastro já existe para atualizar em vez de duplicar
     const spreadsheetId = getSpreadsheetId();
@@ -250,8 +255,8 @@ router.post("/cadastros", async (req, res) => {
     // Proteção: nunca escrever na linha 1 (cabeçalho)
     if (targetRow < 2) targetRow = 2;
 
-    // Enviar dados (PUT funciona tanto para insert quanto update)
-    const insertRange = `CADASTROS!A${targetRow}:H${targetRow}`;
+    // Enviar dados para colunas A-J (10 colunas com categorias)
+    const insertRange = `CADASTROS!A${targetRow}:J${targetRow}`;
     const insertUrl = `${SHEETS_API_BASE}/${spreadsheetId}/values/${insertRange}?valueInputOption=RAW`;
     console.log("[Sheets] insertUrl:", insertUrl);
 
@@ -561,7 +566,14 @@ router.post("/create-or-update", async (req, res) => {
     console.log("[Sheets] [create-or-update] ✅ Access token obtido (length:", accessToken.length, ")");
 
     console.log("[Sheets] [create-or-update] Normalizando categorias...");
+    console.log("[Sheets] [create-or-update] cadastro.categorias type:", typeof cadastro.categorias);
+    console.log("[Sheets] [create-or-update] cadastro.categorias isArray:", Array.isArray(cadastro.categorias));
+    console.log("[Sheets] [create-or-update] cadastro.categorias length:", cadastro.categorias?.length || 0);
+    if (cadastro.categorias && cadastro.categorias.length > 0) {
+      console.log("[Sheets] [create-or-update] Primeira categoria:", JSON.stringify(cadastro.categorias[0]).substring(0, 100));
+    }
     const categorias = normalizeCategorias(cadastro);
+    console.log("[Sheets] [create-or-update] Categorias normalizadas length:", categorias.length);
     const cadastroRow = [
       cadastro.cadastroId,
       cadastro.atcEmail,
@@ -623,6 +635,8 @@ router.post("/create-or-update", async (req, res) => {
     console.log("[Sheets] [create-or-update] Enviando dados para linha:", targetRow);
     console.log("[Sheets] [create-or-update] Range:", insertRange);
     console.log("[Sheets] [create-or-update] URL:", insertUrl);
+    console.log("[Sheets] [create-or-update] Dados na coluna J (categorias JSON):", cadastroRow[9]?.substring?.(0, 200) || "(vazio)");
+    console.log("[Sheets] [create-or-update] Dados na coluna K (historico JSON):", cadastroRow[10]?.substring?.(0, 200) || "(vazio)");
     
     const insertRes = await fetch(insertUrl, {
       method: "PUT",

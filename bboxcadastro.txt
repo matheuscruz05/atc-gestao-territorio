@@ -1,6 +1,6 @@
 ┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ CANAL - UNIDADE - UF                                                                                             ID   │
-│ [NOME DO ATC]  - DATA DE CRIAÇÃO DO CADASTRO                                                                          |
+│ [NOME DO ATC]  - DATA DE CRIAÇÃO DO CADASTRO      DATA DA ÚLTIMA EDIÇÃO:                                              |
 │ [soma do Potencial Real tons]    [soma do Potencial Real em L]                                       [botão "Editar"] │
 │                                                                                                                       |                                                                                                                   |
 |? FERT. BASE:  [MICROESSENTIALS] [ícone da safra]                          [barra de potenciais em relaçao a esse prod]│

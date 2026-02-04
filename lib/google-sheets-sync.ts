@@ -325,8 +325,8 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
 
   try {
     logDebug("syncCadastrosFromSheets", "Buscando cadastros do Sheets");
-    // Usar novo formato com JSON na coluna H
-    const range = "CADASTROS!A2:H1000";
+    // Estrutura: A-J (10 colunas): cadastroId, atcEmail, atcNome, canal, unidade, estado, criadoEm, editadoEm, deletado, categorias_json
+    const range = "CADASTROS!A2:J1000";
     const url = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${range}?key=${config.apiKey}`;
     
     const headers = await getAuthHeaders();
@@ -342,37 +342,81 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
         console.warn(`Detected leading empty column in CADASTROS row ${i + 2} — shifting values by 1.`);
       }
 
-      // Parse categorias from JSON (new format) or convert from old format
-      let categorias: any[] = [];
-      const categoriasJson = row[offset + 7];
-
-      if (categoriasJson) {
-        try {
-          const parsed = JSON.parse(categoriasJson);
-          // Garantir migração de dados antigos
-          categorias = parsed.map((cat: any) => ({
-            ...cat,
-            safra: cat.safra ?? "Verão",
-            potencialAtingido: cat.potencialAtingido ?? (cat.implantado === "Sim" ? (cat.potencialValor || 0) : 0),
-            potencialTotal: cat.potencialTotal ?? (cat.potencialValor || 0),
-          }));
-        } catch (e) {
-          console.warn(`[syncCadastrosFromSheets] Erro ao parsear categorias JSON no row ${i + 2}:`, e);
-          categorias = [];
+      // Debug: Log detalhado da estrutura
+      if (i === 0) {
+        console.log(`[syncCadastrosFromSheets ROW ${i + 2}] ===== ESTRUTURA DO SHEETS =====`);
+        console.log(`[syncCadastrosFromSheets ROW ${i + 2}] Total colunas: ${row.length}`);
+        for (let j = 0; j < Math.min(12, row.length); j++) {
+          const col = String.fromCharCode(65 + j);
+          const val = row[j]?.substring?.(0, 60) || row[j] || "(vazio)";
+          console.log(`  [${col}] = ${val}`);
         }
       }
 
-      return {
+      // ESTRUTURA CORRETA (servidor salva 10 colunas A-J):
+      // A: cadastroId, B: atcEmail, C: atcNome, D: canal, E: unidade, F: estado, 
+      // G: criadoEm, H: editadoEm, I: deletado, J: categorias_json
+      
+      let categoriasJson: string = "";
+      
+      // Categorias JSON estão em coluna J (offset + 9)
+      if (row[offset + 9] && row[offset + 9].startsWith("[")) {
+        categoriasJson = row[offset + 9]; // Coluna J tem JSON
+        if (i === 0) console.log(`[syncCadastrosFromSheets ROW ${i + 2}] ✅ Categorias encontradas em COLUNA J`);
+      } else if (row[offset + 7] && row[offset + 7].startsWith("[")) {
+        // Fallback para formato antigo (se houver)
+        categoriasJson = row[offset + 7]; // Coluna H tem JSON
+        if (i === 0) console.log(`[syncCadastrosFromSheets ROW ${i + 2}] ⚠️ Categorias encontradas em COLUNA H (formato antigo)`);
+      }
+
+      let categorias: any[] = [];
+      if (categoriasJson) {
+        try {
+          if (i === 0) console.log(`[syncCadastrosFromSheets ROW ${i + 2}] Parseando categorias: ${categoriasJson.substring(0, 80)}`);
+          const parsed = JSON.parse(categoriasJson);
+          if (i === 0) console.log(`[syncCadastrosFromSheets ROW ${i + 2}] ✅ ${parsed.length} categorias parseadas`);
+          
+          categorias = parsed.map((cat: any) => {
+            const potencialTotal = cat.potencialTotal ?? cat.potencialValor ?? 0;
+            const potencialAtingido = cat.potencialAtingido ?? (cat.implantado === "Sim" ? (cat.potencialValor || 0) : 0);
+            return {
+              ...cat,
+              safra: cat.safra ?? "Verão",
+              potencialAtingido,
+              potencialTotal,
+            };
+          });
+        } catch (e) {
+          if (i === 0) console.warn(`[syncCadastrosFromSheets ROW ${i + 2}] ❌ Erro parseando JSON categorias:`, (e as Error).message);
+          categorias = [];
+        }
+      } else {
+        if (i === 0) console.log(`[syncCadastrosFromSheets ROW ${i + 2}] ⚠️ Categoria JSON não encontrada em colunas H ou I`);
+      }
+
+      // Mapeamento baseado na ESTRUTURA REAL (10 colunas A-J)
+      const cadastro = {
         cadastroId: row[offset + 0] || "",
-        criadoEm: row[offset + 1] || new Date().toISOString(),
-        atcEmail: row[offset + 2] || "",
-        atcNome: row[offset + 3] || "",
-        canal: row[offset + 4] || "",
-        unidade: row[offset + 5] || "",
-        estado: row[offset + 6] || "",
+        criadoEm: row[offset + 6] || new Date().toISOString(), // Coluna G
+        atcEmail: row[offset + 1] || "",
+        atcNome: row[offset + 2] || "",
+        canal: row[offset + 3] || "", // Coluna D
+        unidade: row[offset + 4] || "", // Coluna E
+        estado: row[offset + 5] || "",
         categorias,
-        deletado: false,
+        editadoEm: row[offset + 7] || "", // Coluna H tem o timestamp de edição
+        deletado: row[offset + 8] === "true",
       } as Cadastro;
+
+      if (i === 0) {
+        logDebug("syncCadastrosFromSheets", `✅ MAPEAMENTO FINAL: CANAL=${cadastro.canal} | UNIDADE=${cadastro.unidade} | ESTADO=${cadastro.estado}`);
+        logDebug("syncCadastrosFromSheets", `📊 Categorias encontradas: ${categorias.length}`);
+        if (categorias.length === 0) {
+          logDebug("syncCadastrosFromSheets", `⚠️ AVISO: Nenhuma categoria encontrada! Verifique se o servidor está salvando categorias no Sheets.`);
+        }
+      }
+
+      return cadastro;
     }).filter((c: Cadastro) => c.cadastroId);
 
     return cadastros;
@@ -391,48 +435,23 @@ export async function getCadastrosByAtc(atcEmail: string): Promise<Cadastro[]> {
   
   console.log(`[getCadastrosByAtc] 🔍 Buscando cadastros para: ${atcEmail}`);
   
-  // Tentativa 1: Sincronizar do Google Sheets
+  // Buscar do Google Sheets (única fonte de dados em produção web)
   try {
-    console.log(`[getCadastrosByAtc] 📡 Tentativa 1: Sincronizar do Google Sheets...`);
+    console.log(`[getCadastrosByAtc] 📡 Sincronizando do Google Sheets...`);
     const cadastros = await syncCadastrosFromSheets();
     
     if (cadastros && cadastros.length > 0) {
       const filtered = cadastros.filter(c => c.atcEmail.toLowerCase() === emailLower);
-      console.log(`[getCadastrosByAtc] ✅ Sucesso! Encontrados ${filtered.length} cadastros do Sheets para ${atcEmail}`);
-      if (filtered.length > 0) {
-        return filtered; // Retornar imediatamente se encontrou
-      } else {
-        console.warn(`[getCadastrosByAtc] ⚠️ Google Sheets tem cadastros, mas nenhum para ${atcEmail}`);
-      }
+      console.log(`[getCadastrosByAtc] ✅ Encontrados ${filtered.length} cadastros do Sheets para ${atcEmail}`);
+      return filtered;
     } else {
-      console.warn(`[getCadastrosByAtc] ⚠️ Google Sheets vazio ou sem cadastros`);
+      console.warn(`[getCadastrosByAtc] ⚠️ Google Sheets vazio`);
+      return [];
     }
   } catch (error) {
     console.error(`[getCadastrosByAtc] ❌ Erro ao sincronizar Sheets:`, error);
+    return [];
   }
-  
-  // Tentativa 2: Se Sheets falhou, tentar fallback com localStorage
-  console.log(`[getCadastrosByAtc] 💾 Tentativa 2: Buscar no localStorage como fallback...`);
-  try {
-    const { getCadastros } = await import("@/lib/storage");
-    const localCadastros = await getCadastros();
-    
-    if (localCadastros && localCadastros.length > 0) {
-      const filtered = localCadastros.filter(c => 
-        !c.deletado && c.atcEmail.toLowerCase() === emailLower
-      );
-      console.log(`[getCadastrosByAtc] ✅ Encontrados ${filtered.length} cadastros no localStorage para ${atcEmail}`);
-      return filtered;
-    } else {
-      console.warn(`[getCadastrosByAtc] ⚠️ localStorage vazio`);
-    }
-  } catch (error) {
-    console.error(`[getCadastrosByAtc] ❌ Erro ao buscar localStorage:`, error);
-  }
-  
-  // Se chegou aqui, não encontrou em nenhum lugar
-  console.warn(`[getCadastrosByAtc] ⚠️ NENHUM cadastro encontrado para ${atcEmail}`);
-  return [];
 }
 
 /**
