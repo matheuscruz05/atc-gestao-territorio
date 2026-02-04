@@ -488,7 +488,7 @@ export async function getDashboardMetricas(cadastrosLocais?: Cadastro[], usuario
       totalCadastros: cadastros.length,
       totalAtcs: usuarios.filter(u => u.role === "ATC" && u.ativo).length,
       totalImplantados: cadastros.filter(c => c.implantado === "Sim").length,
-      potencialTotal: cadastros.reduce((sum, c) => sum + c.potencialValor, 0),
+      potencialTotal: cadastros.reduce((sum, c) => sum + (c.potencialValor ?? 0), 0),
       cadastrosPorCategoria: {} as Record<string, number>,
       cadastrosPorUnidade: {} as Record<string, number>,
       cadastrosPorAtc: {} as Record<string, number>,
@@ -497,8 +497,9 @@ export async function getDashboardMetricas(cadastrosLocais?: Cadastro[], usuario
 
     // Contar por categoria
     cadastros.forEach((c: Cadastro) => {
-      metricas.cadastrosPorCategoria[c.categoria] = 
-        (metricas.cadastrosPorCategoria[c.categoria] || 0) + 1;
+      const categoria = c.categoria || "Sem Categoria";
+      metricas.cadastrosPorCategoria[categoria] = 
+        (metricas.cadastrosPorCategoria[categoria] || 0) + 1;
     });
 
     // Contar por unidade
@@ -515,7 +516,7 @@ export async function getDashboardMetricas(cadastrosLocais?: Cadastro[], usuario
 
     // Contar por produto
     cadastros.forEach((c: Cadastro) => {
-      const produtoNome = c.produtoNomeLivre || c.produtoRef;
+      const produtoNome = c.produtoNomeLivre || c.produtoRef || "Sem Produto";
       metricas.cadastrosPorProduto[produtoNome] = 
         (metricas.cadastrosPorProduto[produtoNome] || 0) + 1;
     });

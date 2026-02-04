@@ -15,7 +15,7 @@ import { useColors } from "@/hooks/use-colors";
 import { getCadastros, setCadastros as setCadastrosStorage } from "@/lib/storage";
 import { deleteCadastroFromSheets, syncCadastrosFromSheets } from "@/lib/google-sheets-sync";
 import { confirmAction } from "@/lib/confirm";
-import type { Cadastro, CategoriaData, Implantado } from "@/types/models";
+import type { Cadastro, CategoriaData, Implantado, Safra } from "@/types/models";
 import { Picker } from "@react-native-picker/picker";
 import { CATEGORIAS, ESTADOS_UF } from "@/types/models";
 
@@ -73,6 +73,7 @@ export default function CadastrosScreen() {
           ? oldData
           : {
               categoria: cat,
+              safra: "Verão" as Safra,
               produtoRef: "",
               produtoNomeLivre: "",
               unidadePotencial: "tons" as const,
@@ -95,6 +96,7 @@ export default function CadastrosScreen() {
       ...cadastro,
       categorias: CATEGORIAS.map((cat) => ({
         categoria: cat,
+        safra: "Verão" as Safra,
         produtoRef: "",
         produtoNomeLivre: "",
         unidadePotencial: "tons" as const,

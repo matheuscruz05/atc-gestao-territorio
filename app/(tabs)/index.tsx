@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { getCadastros, setCadastros } from "@/lib/storage";
 import { getCadastrosByAtc, syncCadastrosFromSheets } from "@/lib/google-sheets-sync";
 import { CATEGORIAS, PRODUTOS_CATALOGO } from "@/types/models";
-import type { Cadastro, CategoriaData, Implantado } from "@/types/models";
+import type { Cadastro, CategoriaData, Implantado, Safra } from "@/types/models";
 
 export default function HomeScreen() {
   const { user, isCoord } = useAuth();
@@ -120,6 +120,7 @@ export default function HomeScreen() {
     if (cadastro.categoria) {
       const oldData: CategoriaData = {
         categoria: cadastro.categoria,
+        safra: cadastro.safra || "Verão",
         produtoRef: cadastro.produtoRef || "",
         produtoNomeLivre: cadastro.produtoNomeLivre || "",
         unidadePotencial: cadastro.unidadePotencial || "tons",
@@ -135,6 +136,7 @@ export default function HomeScreen() {
           ? oldData
           : {
               categoria: cat,
+              safra: "Verão" as Safra,
               produtoRef: "",
               produtoNomeLivre: "",
               unidadePotencial: "tons" as const,
@@ -157,6 +159,7 @@ export default function HomeScreen() {
       ...cadastro,
       categorias: CATEGORIAS.map((cat) => ({
         categoria: cat,
+        safra: "Verão" as Safra,
         produtoRef: "",
         produtoNomeLivre: "",
         unidadePotencial: "tons" as const,

@@ -471,7 +471,7 @@ export default function NovoCadastroScreen() {
       console.log(`  - atcEmail: ${novoCadastro.atcEmail}`);
       console.log(`  - atcNome: ${novoCadastro.atcNome}`);
       console.log(`  - categorias: ${novoCadastro.categorias.length}`);
-      console.log(`  - historico: ${novoCadastro.historico.length}`);
+      console.log(`  - historico: ${novoCadastro.historico?.length || 0}`);
       console.log(`  - editadoEm: ${novoCadastro.editadoEm}`);
 
       // Salvar localmente
@@ -490,8 +490,8 @@ export default function NovoCadastroScreen() {
       if (syncResult.error) {
         console.error(`  - error: ${syncResult.error}`);
       }
-      if (syncResult.details) {
-        console.error(`  - details: ${JSON.stringify(syncResult.details)}`);
+      if ((syncResult as any).details) {
+        console.error(`  - details: ${JSON.stringify((syncResult as any).details)}`);
       }
 
       if (syncResult.success) {

@@ -33,7 +33,7 @@ import {
   deleteCadastroFromSheets,
 } from "@/lib/google-sheets-sync";
 import { confirmAction } from "@/lib/confirm";
-import type { Usuario, Produto, Canal, Unidade, Cadastro, Categoria, CategoriaData, Implantado } from "@/types/models";
+import type { Usuario, Produto, Canal, Unidade, Cadastro, Categoria, CategoriaData, Implantado, Safra } from "@/types/models";
 import { CATEGORIAS, PRODUTOS_CATALOGO } from "@/types/models";
 import { DashboardCard } from "@/components/dashboard-card";
 import { DashboardChartBar } from "@/components/dashboard-chart-bar";
@@ -125,7 +125,7 @@ export default function AdminScreen() {
               produtoNomeLivre: "",
               unidadePotencial: "tons" as const,
               implantado: "Não" as Implantado,
-              safra: "Verão" as const,
+              safra: "Verão" as Safra,
               potencialAtingido: 0,
               potencialTotal: 0,
               concorrentes: "",
@@ -148,7 +148,7 @@ export default function AdminScreen() {
         produtoNomeLivre: "",
         unidadePotencial: "tons" as const,
         implantado: "Não" as Implantado,
-        safra: "Verão" as const,
+        safra: "Verão" as Safra,
         potencialAtingido: 0,
         potencialTotal: 0,
         concorrentes: "",
@@ -328,7 +328,7 @@ export default function AdminScreen() {
           canal: cad.canal, 
           unidade: cad.unidade,
           // Garantir migração de dados antigos
-          safra: cat.safra ?? "Verão",
+          safra: (cat.safra ?? "Verão") as Safra,
           potencialAtingido: cat.potencialAtingido ?? (cat.implantado === "Sim" ? (cat.potencialValor || 0) : 0),
           potencialTotal: cat.potencialTotal ?? (cat.potencialValor || 0),
         }));
@@ -340,7 +340,7 @@ export default function AdminScreen() {
           produtoNomeLivre: cad.produtoNomeLivre || "",
           unidadePotencial: cad.unidadePotencial || "tons",
           implantado: cad.implantado || "Não",
-          safra: "Verão",
+          safra: "Verão" as Safra,
           potencialAtingido: cad.implantado === "Sim" ? (cad.potencialValor || 0) : 0,
           potencialTotal: cad.potencialValor || 0,
           concorrentes: cad.concorrentes || "",
