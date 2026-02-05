@@ -1,10 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build",
+  "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "framework": null,
   "devCommand": null,
-  "installCommand": "npm install --legacy-peer-deps",
+  "installCommand": "pnpm install",
   "rewrites": [
     {
       "source": "/api/(.*)",
