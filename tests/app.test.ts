@@ -14,6 +14,7 @@ import {
   generateUniqueId,
 } from "@/lib/storage";
 import type { Usuario, Cadastro } from "@/types/models";
+import { withCategorias } from "@/lib/cadastro-legacy";
 import { SEED_USUARIOS, SEED_PRODUTOS, SEED_CANAIS, SEED_UNIDADES } from "@/lib/seed-data";
 
 describe("ATC Gestão de Território - Testes", () => {
@@ -92,7 +93,7 @@ describe("ATC Gestão de Território - Testes", () => {
     });
 
     it("deve criar cadastro com todos os campos obrigatórios", async () => {
-      const novoCadastro: Cadastro = {
+      const novoCadastro: Cadastro = withCategorias({
         cadastroId: generateUniqueId(),
         criadoEm: new Date().toISOString(),
         atcEmail: "atc1@atc.com",
@@ -107,7 +108,7 @@ describe("ATC Gestão de Território - Testes", () => {
         potencialValor: 1000,
         concorrentes: "Concorrente A, Concorrente B",
         observacao: "Teste de observação",
-      };
+      });
 
       await addCadastro(novoCadastro);
       const cadastros = await getCadastros();
@@ -138,7 +139,7 @@ describe("ATC Gestão de Território - Testes", () => {
     });
 
     it("deve validar HIDROSSOLÚVEIS com produto livre", async () => {
-      const cadastroHidro: Cadastro = {
+      const cadastroHidro: Cadastro = withCategorias({
         cadastroId: generateUniqueId(),
         criadoEm: new Date().toISOString(),
         atcEmail: "atc1@atc.com",
@@ -154,7 +155,7 @@ describe("ATC Gestão de Território - Testes", () => {
         potencialValor: 0,
         concorrentes: "",
         observacao: "",
-      };
+      });
 
       await addCadastro(cadastroHidro);
       const cadastros = await getCadastros();
@@ -165,7 +166,7 @@ describe("ATC Gestão de Território - Testes", () => {
     });
 
     it("deve validar potencial obrigatório quando implantado = Sim", async () => {
-      const cadastroImplantado: Cadastro = {
+      const cadastroImplantado: Cadastro = withCategorias({
         cadastroId: generateUniqueId(),
         criadoEm: new Date().toISOString(),
         atcEmail: "atc1@atc.com",
@@ -180,7 +181,7 @@ describe("ATC Gestão de Território - Testes", () => {
         potencialValor: 500,
         concorrentes: "",
         observacao: "",
-      };
+      });
 
       await addCadastro(cadastroImplantado);
       const cadastros = await getCadastros();
@@ -197,7 +198,7 @@ describe("ATC Gestão de Território - Testes", () => {
 
     it("ATC deve ver apenas próprios cadastros", async () => {
       // Criar cadastros de diferentes ATCs
-      const cadastro1: Cadastro = {
+      const cadastro1: Cadastro = withCategorias({
         cadastroId: generateUniqueId(),
         criadoEm: new Date().toISOString(),
         atcEmail: "atc1@atc.com",
@@ -212,7 +213,7 @@ describe("ATC Gestão de Território - Testes", () => {
         potencialValor: 1000,
         concorrentes: "",
         observacao: "",
-      };
+      });
 
       const cadastro2: Cadastro = {
         ...cadastro1,
@@ -242,7 +243,7 @@ describe("ATC Gestão de Território - Testes", () => {
 
     it("Coordenador deve ver todos os cadastros", async () => {
       // Criar cadastros de diferentes ATCs
-      const cadastro1: Cadastro = {
+      const cadastro1: Cadastro = withCategorias({
         cadastroId: generateUniqueId(),
         criadoEm: new Date().toISOString(),
         atcEmail: "atc1@atc.com",
@@ -257,7 +258,7 @@ describe("ATC Gestão de Território - Testes", () => {
         potencialValor: 1000,
         concorrentes: "",
         observacao: "",
-      };
+      });
 
       const cadastro2: Cadastro = {
         ...cadastro1,

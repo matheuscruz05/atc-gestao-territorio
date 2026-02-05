@@ -6,12 +6,13 @@
  */
 
 import type { Cadastro } from "@/types/models";
+import { withCategorias, type LegacyCadastro } from "@/lib/cadastro-legacy";
 
 /**
  * Cadastros fictícios para testes QA
  * Estes dados cobrem múltiplos cenários de teste
  */
-export const QA_CADASTROS_FICTICIOS: Cadastro[] = [
+const QA_CADASTROS_FICTICIOS_BASE: LegacyCadastro[] = [
   // ===== CENÁRIO 1: Cadastro Básico Completo =====
   {
     cadastroId: "qa-001",
@@ -287,6 +288,9 @@ export const QA_CADASTROS_FICTICIOS: Cadastro[] = [
   },
 ];
 
+export const QA_CADASTROS_FICTICIOS: Cadastro[] =
+  QA_CADASTROS_FICTICIOS_BASE.map(withCategorias);
+
 /**
  * Estatísticas dos dados fictícios para QA
  */
@@ -310,7 +314,7 @@ export const QA_ESTATISTICAS = {
     (c) => c.implantado === "Não"
   ).length,
   potencialTotal: QA_CADASTROS_FICTICIOS.reduce(
-    (sum, c) => sum + c.potencialValor,
+    (sum, c) => sum + (c.potencialValor ?? 0),
     0
   ),
   categorias: [

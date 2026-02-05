@@ -1,0 +1,48 @@
+# Cache and build artifacts
+.expo/
+node_modules/.cache
+dist/
+build/
+.next/
+
+# Local and temporary files
+.DS_Store
+.env.local
+.env.*.local
+secrets/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.iml
+
+# Tests
+*.test.ts
+*.test.tsx
+vitest.config.ts
+
+# Documentation and development
+docs/
+README.md
+DEPLOYMENT_*.md
+VERCEL_BUILD_ERROR_ANALYSIS.md
+todo.md
+design.md
+
+# Database and migrations (generated at build time)
+drizzle/
+
+# Scripts
+scripts/
+
+# Package manager
+pnpm-lock.yaml.bak
+npm-debug.log
+yarn-error.log

@@ -3,20 +3,10 @@ const { withNativeWind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
 
-// Add path alias resolution for Metro
-if (config.resolver) {
-  config.resolver.extraNodeModules = new Proxy(
-    {},
-    {
-      get: (target, name) => {
-        if (name === "@") {
-          return __dirname;
-        }
-        return null;
-      },
-    }
-  );
-}
+// NOTE: Removed problematic extraNodeModules Proxy
+// Metro 0.76+ resolves tsconfig.json paths automatically
+// The Proxy was returning null for non-@ aliases, causing build failures on Vercel
+// See: VERCEL_BUILD_ERROR_ANALYSIS.md for details
 
 module.exports = withNativeWind(config, {
   input: "./global.css",
