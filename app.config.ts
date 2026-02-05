@@ -1,5 +1,12 @@
 // Load environment variables with proper priority (system > .env)
-import "./scripts/load-env.js";
+// Only load in local development (Vercel injects env vars automatically)
+try {
+  if (process.env.VERCEL !== "1") {
+    require("./scripts/load-env.js");
+  }
+} catch (e) {
+  // Ignore if file doesn't exist (e.g., in production builds)
+}
 import type { ExpoConfig } from "expo/config";
 
 // Bundle ID format: space.manus.<project_name_dots>.<timestamp>
