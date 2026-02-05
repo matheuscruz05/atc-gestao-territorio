@@ -10,6 +10,7 @@
 
 import { getCadastros, setCadastros, addCadastro } from '../lib/storage';
 import type { Cadastro } from '@/types/models';
+import { withCategorias } from '@/lib/cadastro-legacy';
 import { SEED_USUARIOS } from '../lib/seed-data';
 
 async function testEditDeleteCadastros() {
@@ -19,7 +20,7 @@ async function testEditDeleteCadastros() {
     // Passo 1: Criar cadastro de teste
     console.log('📝 Passo 1: Criando cadastro de teste...\n');
     
-    const testCadastro: Cadastro = {
+    const testCadastro: Cadastro = withCategorias({
       cadastroId: 'test-edit-delete-001',
       criadoEm: new Date().toISOString(),
       atcEmail: SEED_USUARIOS[1].email, // atc1@atc.com
@@ -35,7 +36,7 @@ async function testEditDeleteCadastros() {
       potencialValor: 1000,
       concorrentes: 'Concorrente 1, Concorrente 2',
       observacao: 'Cadastro de teste para edição',
-    };
+    });
 
     await addCadastro(testCadastro);
     console.log(`✅ Cadastro criado: ${testCadastro.cadastroId}`);

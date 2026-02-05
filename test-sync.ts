@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import { syncUsuariosFromSheets, syncProdutosFromSheets, syncCanaisFromSheets, syncUnidadesFromSheets, syncCadastrosFromSheets, syncAllCadastrosToSheets, pullCadastrosFromSheets } from './lib/google-sheets-sync';
+import type { Cadastro } from "@/types/models";
+import { withCategorias } from "@/lib/cadastro-legacy";
 
 // Carregar variáveis de ambiente do .env.local
 import { config } from 'dotenv';
@@ -77,19 +79,24 @@ async function testGoogleSheetsSync() {
   // Teste 6: Escrita de Cadastro (Teste)
   console.log('\n✍️  Teste 6: Escrita de cadastro de TESTE na planilha');
   try {
-    const cadastroTeste = [{
-      cadastroId: 'TEST_' + Date.now(),
-      usuarioEmail: 'teste@sync.com',
-      dataVisita: new Date().toISOString().split('T')[0],
-      canalId: 'VAREJO',
-      unidadeId: 'UNID_SP_01',
-      produtoId: 'FERTBASE_NPK_01',
-      potencialVenda: 100,
-      unidadePotencial: 'tons' as const,
-      observacoes: '🧪 Teste de sincronização automático',
-      sincronizado: false,
-      timestamp: Date.now()
-    }];
+    const cadastroTeste: Cadastro[] = [
+      withCategorias({
+        cadastroId: 'TEST_' + Date.now(),
+        criadoEm: new Date().toISOString(),
+        atcEmail: 'teste@sync.com',
+        atcNome: 'Teste Sync',
+        canal: 'VAREJO',
+        unidade: 'UNID_SP_01',
+        estado: 'SP',
+        categoria: 'FERTILIZANTE - BASE',
+        produtoRef: 'FERTBASE_NPK_01',
+        unidadePotencial: 'tons',
+        implantado: 'Não',
+        potencialValor: 100,
+        concorrentes: '',
+        observacao: '🧪 Teste de sincronização automático',
+      }),
+    ];
     
     await syncAllCadastrosToSheets(cadastroTeste);
     console.log('✅ Cadastro de teste escrito com sucesso!');
@@ -105,7 +112,7 @@ async function testGoogleSheetsSync() {
     console.log(`✅ ${result.cadastros.length} cadastros baixados`);
     
     // Verificar se o cadastro de teste existe
-    const testeCadastro = result.cadastros.find(c => c.usuarioEmail === 'teste@sync.com');
+    const testeCadastro = result.cadastros.find(c => c.atcEmail === 'teste@sync.com');
     if (testeCadastro) {
       console.log('✅ Cadastro de teste encontrado após pull!');
       console.log('   ', testeCadastro);

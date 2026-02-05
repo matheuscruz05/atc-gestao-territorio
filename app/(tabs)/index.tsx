@@ -303,7 +303,11 @@ export default function HomeScreen() {
       unsub = mod.subscribePendingCount((c: number) => setPendingCount(c));
     })();
 
-    return () => unsub && unsub();
+    return () => {
+      if (unsub) {
+        unsub();
+      }
+    };
   }, [migrateHidrosoluveis, loadCadastros]);
 
   // Filtrar por busca - por Canal, Unidade, Estado, ATC ou ID

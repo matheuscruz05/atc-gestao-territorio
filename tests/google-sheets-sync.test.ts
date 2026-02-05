@@ -13,6 +13,7 @@ beforeEach(() => {
   delete process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 });
 import type { Cadastro, Usuario } from "@/types/models";
+import { withCategorias } from "@/lib/cadastro-legacy";
 
 describe("Google Sheets Sync", () => {
   describe("authenticateWithSheets", () => {
@@ -37,7 +38,7 @@ describe("Google Sheets Sync", () => {
     it("deve processar cadastros locais e gerar métricas corretas", async () => {
       // Dados de teste locais
       const cadastrosLocais: Cadastro[] = [
-        {
+        withCategorias({
           cadastroId: "1",
           criadoEm: new Date().toISOString(),
           atcEmail: "atc1@atc.com",
@@ -53,8 +54,8 @@ describe("Google Sheets Sync", () => {
           potencialValor: 1000,
           concorrentes: "Concorrente A",
           observacao: "Observação teste",
-        },
-        {
+        }),
+        withCategorias({
           cadastroId: "2",
           criadoEm: new Date().toISOString(),
           atcEmail: "atc2@atc.com",
@@ -70,7 +71,7 @@ describe("Google Sheets Sync", () => {
           potencialValor: 2000,
           concorrentes: "Concorrente B",
           observacao: "Observação teste 2",
-        },
+        }),
       ];
 
       const usuariosLocais: Usuario[] = [

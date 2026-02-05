@@ -10,6 +10,7 @@ import {
   pullCadastrosFromSheets,
 } from "@/lib/google-sheets-sync";
 import type { Cadastro } from "@/types/models";
+import { withCategorias } from "@/lib/cadastro-legacy";
 
 // Note: This test suite focuses on the read operations and UI logic
 // Write operations (sendCadastroToSheets, syncAllCadastrosToSheets) require Service Account authentication
@@ -47,7 +48,7 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
 
     it("deve preparar dados locais para envio", async () => {
       // Test that data structures are correct for sending
-      const mockCadastro: Cadastro = {
+      const mockCadastro: Cadastro = withCategorias({
         cadastroId: "TEST-001",
         criadoEm: new Date().toISOString(),
         atcEmail: "test@atc.com",
@@ -63,7 +64,7 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
         potencialValor: 1000,
         concorrentes: "None",
         observacao: "Test observation",
-      };
+      });
       
       // Verify structure is correct
       expect(mockCadastro.cadastroId).toBeDefined();
@@ -77,7 +78,7 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
     it("deve preparar múltiplos cadastros para envio", async () => {
       // Test batch operation logic without actual Sheets writes
       const mockCadastros: Cadastro[] = [
-        {
+        withCategorias({
           cadastroId: "BATCH-1",
           criadoEm: new Date().toISOString(),
           atcEmail: "test1@atc.com",
@@ -93,8 +94,8 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
           potencialValor: 1000,
           concorrentes: "None",
           observacao: "Test",
-        },
-        {
+        }),
+        withCategorias({
           cadastroId: "BATCH-2",
           criadoEm: new Date().toISOString(),
           atcEmail: "test2@atc.com",
@@ -110,7 +111,7 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
           potencialValor: 2000,
           concorrentes: "Competitor",
           observacao: "Test",
-        },
+        }),
       ];
       
       // Verify all required fields are present
@@ -180,12 +181,12 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
         console.warn("Pull operation not available in test environment");
       }
     });
-  });;
+  });
 
   describe("Round-trip: Local → Sheets → Local Data Flow", () => {
     it("deve suportar ciclo completo de sincronização", async () => {
       // Test the data flow logic without actual Sheets operations
-      const testData: Cadastro = {
+      const testData: Cadastro = withCategorias({
         cadastroId: "ROUNDTRIP-001",
         criadoEm: new Date().toISOString(),
         atcEmail: "test@atc.com",
@@ -201,14 +202,14 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
         potencialValor: 1500,
         concorrentes: "None",
         observacao: "Test observation",
-      };
-      
+      });
+
       // Verify all required fields for round-trip
       expect(testData.cadastroId).toBeDefined();
       expect(testData.criadoEm).toBeDefined();
       expect(testData.atcNome).toBeDefined();
       expect(testData.atcEmail).toBeDefined();
-      
+
       console.log(`✅ Cadastro pronto para round-trip: ${testData.cadastroId}`);
     });
 
@@ -221,7 +222,7 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
           criadoEm: "2024-01-01T00:00:00Z",
         } as any,
       ];
-      
+
       const fromSheets = [
         {
           cadastroId: "LOCAL-1",
@@ -229,17 +230,17 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
           criadoEm: "2024-01-01T00:00:00Z",
         } as any,
       ];
-      
+
       // Merge logic: prefer Sheets version
       const merged = local.map((l) => {
         const fromSheet = fromSheets.find((s) => s.cadastroId === l.cadastroId);
         return fromSheet || l;
       });
-      
+
       expect(merged[0].atcNome).toBe("ATC 1 Updated");
       console.log(`✅ Merge sem conflitos realizado`);
     });
-  });;
+  });
 
   describe("Conflict Resolution: Data Consistency", () => {
     it("deve priorizar dados mais recentes em conflitos", async () => {
@@ -249,19 +250,30 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
         criadoEm: "2024-01-01T00:00:00Z",
         atcNome: "Old Version",
       } as any;
-      
-      const newer = {
+
+      const newer = withCategorias({
         cadastroId: "SHARED-001",
         criadoEm: "2024-01-02T00:00:00Z",
         atcNome: "New Version",
-      } as any;
-      
+        atcEmail: "shared@atc.com",
+        canal: "Online",
+        unidade: "Unit",
+        estado: "SP",
+        categoria: "FERTILIZANTE - BASE" as const,
+        produtoRef: "PROD-TEST",
+        unidadePotencial: "tons" as const,
+        implantado: "Sim" as const,
+        potencialValor: 100,
+        concorrentes: "None",
+        observacao: "Test",
+      });
+
       // Compare timestamps
       const result = new Date(newer.criadoEm) > new Date(older.criadoEm) ? newer : older;
       expect(result.atcNome).toBe("New Version");
       console.log(`✅ Conflito resolvido com dados mais recentes`);
     });
-  });;
+  });
 
   describe("Partial Failure Handling", () => {
     it("deve validar estrutura em lote com dados mistos", async () => {
@@ -311,7 +323,7 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
     it("deve calcular corretamente com dados de exemplo", async () => {
       // Test metrics calculation with mock data
       const mockCadastros: Cadastro[] = [
-        {
+        withCategorias({
           cadastroId: "MOCK-1",
           criadoEm: "2024-01-01T00:00:00Z",
           atcEmail: "atc1@test.com",
@@ -327,8 +339,8 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
           potencialValor: 1000,
           concorrentes: "None",
           observacao: "Test",
-        },
-        {
+        }),
+        withCategorias({
           cadastroId: "MOCK-2",
           criadoEm: "2024-01-02T00:00:00Z",
           atcEmail: "atc2@test.com",
@@ -344,7 +356,7 @@ describe("Sync & Pull Button Functionality - Integration Tests", () => {
           potencialValor: 2000,
           concorrentes: "Competitor",
           observacao: "Test",
-        },
+        }),
       ];
       
       try {
