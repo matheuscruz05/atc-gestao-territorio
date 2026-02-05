@@ -24,6 +24,7 @@ import type {
   Canal,
   Unidade,
   Cadastro,
+  HistoricoEdicao,
 } from "@/types/models";
 import { getApiBaseUrl } from "@/constants/oauth";
 
@@ -325,8 +326,8 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
 
   try {
     logDebug("syncCadastrosFromSheets", "Buscando cadastros do Sheets");
-    // Estrutura: A-J (10 colunas): cadastroId, atcEmail, atcNome, canal, unidade, estado, criadoEm, editadoEm, deletado, categorias_json
-    const range = "CADASTROS!A2:J1000";
+    // Estrutura: A-K (11 colunas): cadastroId, atcEmail, atcNome, canal, unidade, estado, criadoEm, editadoEm, deletado, categorias_json, historico_json
+    const range = "CADASTROS!A2:K1000";
     const url = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${range}?key=${config.apiKey}`;
     
     const headers = await getAuthHeaders();
@@ -353,9 +354,9 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
         }
       }
 
-      // ESTRUTURA CORRETA (servidor salva 10 colunas A-J):
+      // ESTRUTURA CORRETA (servidor salva 11 colunas A-K):
       // A: cadastroId, B: atcEmail, C: atcNome, D: canal, E: unidade, F: estado, 
-      // G: criadoEm, H: editadoEm, I: deletado, J: categorias_json
+      // G: criadoEm, H: editadoEm, I: deletado, J: categorias_json, K: historico_json
       
       let categoriasJson: string = "";
       
@@ -394,6 +395,17 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
         if (i === 0) console.log(`[syncCadastrosFromSheets ROW ${i + 2}] ⚠️ Categoria JSON não encontrada em colunas H ou I`);
       }
 
+      let historico: HistoricoEdicao[] = [];
+      const historicoJson = row[offset + 10]; // Coluna K
+      if (historicoJson && historicoJson.startsWith("[")) {
+        try {
+          historico = JSON.parse(historicoJson);
+        } catch (e) {
+          if (i === 0) console.warn(`[syncCadastrosFromSheets ROW ${i + 2}] ❌ Erro parseando histórico JSON:`, (e as Error).message);
+          historico = [];
+        }
+      }
+
       // Mapeamento baseado na ESTRUTURA REAL (10 colunas A-J)
       const cadastro = {
         cadastroId: row[offset + 0] || "",
@@ -404,6 +416,7 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
         unidade: row[offset + 4] || "", // Coluna E
         estado: row[offset + 5] || "",
         categorias,
+        historico,
         editadoEm: row[offset + 7] || "", // Coluna H tem o timestamp de edição
         deletado: row[offset + 8] === "true",
       } as Cadastro;
@@ -816,7 +829,7 @@ export async function pullCadastrosFromSheets(): Promise<{
 
   try {
     logDebug("pullCadastrosFromSheets", "Iniciando pull");
-    const range = "CADASTROS!A2:H1000"; // Skip header; col H = categorias JSON
+    const range = "CADASTROS!A2:K1000"; // Skip header; col J = categorias JSON, col K = historico JSON
     const url = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${range}?key=${config.apiKey}`;
     const headers = await getAuthHeaders();
     const response = await fetch(url, { headers });
@@ -832,7 +845,7 @@ export async function pullCadastrosFromSheets(): Promise<{
       .map((row: string[]) => {
         const offset = row.length > 1 && row[0] === "" ? 1 : 0;
 
-        const categoriasJson = row[offset + 7];
+        const categoriasJson = row[offset + 9];
         let categorias: any[] = [];
 
         if (categoriasJson) {
@@ -869,16 +882,28 @@ export async function pullCadastrosFromSheets(): Promise<{
           ];
         }
 
+        let historico: HistoricoEdicao[] = [];
+        const historicoJson = row[offset + 10];
+        if (historicoJson && historicoJson.startsWith("[")) {
+          try {
+            historico = JSON.parse(historicoJson);
+          } catch (e) {
+            console.warn("[SheetsClient] Erro ao parsear historico JSON", e);
+            historico = [];
+          }
+        }
+
         return {
           cadastroId: row[offset + 0] || "",
-          criadoEm: row[offset + 1] || new Date().toISOString(),
-          atcEmail: row[offset + 2] || "",
-          atcNome: row[offset + 3] || "",
-          canal: row[offset + 4] || "",
-          unidade: row[offset + 5] || "",
-          estado: row[offset + 6] || "",
+          criadoEm: row[offset + 6] || new Date().toISOString(),
+          atcEmail: row[offset + 1] || "",
+          atcNome: row[offset + 2] || "",
+          canal: row[offset + 3] || "",
+          unidade: row[offset + 4] || "",
+          estado: row[offset + 5] || "",
           categorias,
-          deletado: false,
+          historico,
+          deletado: row[offset + 8] === "true",
         } as Cadastro;
       })
       .filter((c: Cadastro) => c.cadastroId);

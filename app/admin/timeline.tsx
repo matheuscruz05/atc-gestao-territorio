@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useAuth } from "@/lib/auth-context";
 import { useColors } from "@/hooks/use-colors";
-import { getCadastros } from "@/lib/storage";
+import { syncCadastrosFromSheets } from "@/lib/google-sheets-sync";
 import type { Cadastro, Safra, HistoricoEdicao, PotencialSnapshot } from "@/types/models";
 
 export default function TimelineCoordScreen() {
@@ -29,9 +29,8 @@ export default function TimelineCoordScreen() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const allCadastros = await getCadastros();
-      // Filtrar apenas cadastros não deletados
-      const cadastrosAtivos = allCadastros.filter((c) => !c.deletado);
+      const sheetsCadastros = await syncCadastrosFromSheets();
+      const cadastrosAtivos = sheetsCadastros.filter((c) => !c.deletado);
       setCadastros(cadastrosAtivos);
     } catch (error) {
       console.error("Erro ao carregar cadastros:", error);
