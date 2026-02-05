@@ -473,11 +473,24 @@ export default function NovoCadastroScreen() {
       console.log(`  - categorias: ${novoCadastro.categorias.length}`);
       console.log(`  - historico: ${novoCadastro.historico?.length || 0}`);
       console.log(`  - editadoEm: ${novoCadastro.editadoEm}`);
+      
+      // 📖 DEBUG: Rastrear histórico completo
+      if (novoCadastro.historico && novoCadastro.historico.length > 0) {
+        console.log(`[Novo Cadastro] 📖 DETALHES DO HISTÓRICO:`);
+        novoCadastro.historico.forEach((item, idx) => {
+          console.log(`  [${idx}] editadoEm: ${item.editadoEm}, snapshots: ${item.snapshots?.length || 0}`);
+          if (item.snapshots && item.snapshots.length > 0) {
+            console.log(`       Primeiro snapshot: ${JSON.stringify(item.snapshots[0]).substring(0, 100)}`);
+          }
+        });
+      } else {
+        console.warn(`[Novo Cadastro] ⚠️  HISTÓRICO VAZIO!`);
+      }
 
       // Salvar localmente
       console.log(`[Novo Cadastro] 💾 Iniciando salvar em AsyncStorage...`);
       await addCadastro(novoCadastro);
-      console.log(`[Novo Cadastro] ✅ Salvo em AsyncStorage com sucesso!`);
+      console.log(`[Novo Cadastro] ✅ Salvo em AsyncStorage com sucesso!`);;
 
       // Tentar sincronizar com Google Sheets
       console.log(`[Novo Cadastro] 🌐 Iniciando sincronização com Google Sheets...`);
