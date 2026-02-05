@@ -574,6 +574,21 @@ router.post("/create-or-update", async (req, res) => {
     }
     const categorias = normalizeCategorias(cadastro);
     console.log("[Sheets] [create-or-update] Categorias normalizadas length:", categorias.length);
+    
+    // ⚠️ DEBUG: Rastrear histórico
+    const historicoArray = cadastro.historico || [];
+    const historicoJson = JSON.stringify(historicoArray);
+    console.log("[Sheets] [create-or-update] 📖 HISTÓRICO DEBUG:");
+    console.log("[Sheets] [create-or-update]   - Tipo:", typeof cadastro.historico);
+    console.log("[Sheets] [create-or-update]   - isArray:", Array.isArray(cadastro.historico));
+    console.log("[Sheets] [create-or-update]   - Length:", historicoArray.length);
+    console.log("[Sheets] [create-or-update]   - JSON size:", historicoJson.length, "caracteres");
+    if (historicoArray.length > 0) {
+      console.log("[Sheets] [create-or-update]   - Primeiro item:", JSON.stringify(historicoArray[0]).substring(0, 150));
+    } else {
+      console.log("[Sheets] [create-or-update]   - ⚠️ HISTÓRICO VAZIO!");
+    }
+    
     const cadastroRow = [
       cadastro.cadastroId,
       cadastro.atcEmail,
@@ -585,7 +600,7 @@ router.post("/create-or-update", async (req, res) => {
       cadastro.editadoEm || "",
       cadastro.deletado ? "true" : "false",
       JSON.stringify(categorias || []),
-      JSON.stringify(cadastro.historico || []),
+      historicoJson,
     ];
 
     // Verificar se já existe

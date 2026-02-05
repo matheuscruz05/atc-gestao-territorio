@@ -634,16 +634,24 @@ export async function sendCadastroToSheets(
     console.log(`[sendCadastro] 📝 canal: ${cadastro.canal}`);
     console.log(`[sendCadastro] 📝 unidade: ${cadastro.unidade}`);
     console.log(`[sendCadastro] 📝 atcEmail: ${cadastro.atcEmail}`);
+    console.log(`[sendCadastro] 📖 historico: ${cadastro.historico?.length || 0} registros`);
     
     const categorias = normalizeCategorias(cadastro);
     console.log(`[sendCadastro] ✅ Categorias normalizadas: ${categorias.length}`);
     
-    // Usar endpoint do servidor com URL base correta
-    // Em desenvolvimento: localhost:3000 (Vercel local)
-    // Em produção: https://seu-dominio.vercel.app
-    const apiBaseUrl = getApiBaseUrl();
-    const serverUrl = apiBaseUrl ? `${apiBaseUrl}/api/sheets/create-or-update` : "/api/sheets/create-or-update";
-    console.log(`[sendCadastro] 🚀 POST para ${serverUrl} (base: ${apiBaseUrl || "relativa"})`);
+    // ⚠️ IMPORTANTE: Em Vercel, usar URLs relativas (/api/...) para evitar CORS
+    // Não usar getApiBaseUrl() porque pode apontar para URL errada em preview deploys
+    const serverUrl = "/api/sheets/create-or-update";
+    
+    // Debug: log de origem e URL
+    if (typeof window !== "undefined") {
+      console.log(`[sendCadastro] 🌍 ORIGEM: ${window.location.origin}`);
+      console.log(`[sendCadastro] 📍 URL RELATICA: ${serverUrl}`);
+    } else {
+      console.log(`[sendCadastro] 🌍 Executando no servidor (não há window.location)`);
+    }
+    
+    console.log(`[sendCadastro] 🚀 POST para ${serverUrl}`);
 
     const response = await fetch(serverUrl, {
       method: "POST",
