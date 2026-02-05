@@ -10,7 +10,7 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/lib/auth-context";
 import { useColors } from "@/hooks/use-colors";
-import { getCadastros } from "@/lib/storage";
+import { getCadastrosByAtc } from "@/lib/google-sheets-sync";
 import type { Cadastro, Safra, HistoricoEdicao, PotencialSnapshot } from "@/types/models";
 
 export default function TimelineScreen() {
@@ -33,12 +33,14 @@ export default function TimelineScreen() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const allCadastros = await getCadastros();
-      // Filtrar apenas os cadastros do usuário logado
-      const meusCadastros = allCadastros.filter(
-        (c) => c.atcEmail === user?.email && !c.deletado
-      );
-      setCadastros(meusCadastros);
+      if (!user?.email) {
+        setCadastros([]);
+        return;
+      }
+
+      const sheetsCadastros = await getCadastrosByAtc(user.email);
+      const cadastrosAtivos = sheetsCadastros.filter((c) => !c.deletado);
+      setCadastros(cadastrosAtivos);
     } catch (error) {
       console.error("Erro ao carregar cadastros:", error);
     } finally {
