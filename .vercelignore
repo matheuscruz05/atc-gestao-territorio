@@ -38,6 +38,7 @@ design.md
 
 # Legacy serverless entry (ignored to avoid path conflict)
 api/index.mjs
+api/index.ts
 
 # Database and migrations (generated at build time)
 drizzle/
