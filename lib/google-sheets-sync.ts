@@ -326,7 +326,7 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
 
   try {
     logDebug("syncCadastrosFromSheets", "Buscando cadastros do Sheets");
-    // Estrutura: A-K (11 colunas): cadastroId, atcEmail, atcNome, canal, unidade, estado, criadoEm, editadoEm, deletado, categorias_json, historico_json
+    // Estrutura: A-K (11 colunas): cadastroId, atcEmail, atcNome, unidade, canal, estado, criadoEm, editadoEm, deletado, categorias_json, historico_json
     const range = "CADASTROS!A2:K1000";
     const url = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${range}?key=${config.apiKey}`;
     
@@ -355,7 +355,7 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
       }
 
       // ESTRUTURA CORRETA (servidor salva 11 colunas A-K):
-      // A: cadastroId, B: atcEmail, C: atcNome, D: canal, E: unidade, F: estado, 
+      // A: cadastroId, B: atcEmail, C: atcNome, D: unidade, E: canal, F: estado, 
       // G: criadoEm, H: editadoEm, I: deletado, J: categorias_json, K: historico_json
       
       let categoriasJson: string = "";
@@ -412,8 +412,8 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
         criadoEm: row[offset + 6] || new Date().toISOString(), // Coluna G
         atcEmail: row[offset + 1] || "",
         atcNome: row[offset + 2] || "",
-        canal: row[offset + 3] || "", // Coluna D
-        unidade: row[offset + 4] || "", // Coluna E
+        unidade: row[offset + 3] || "", // Coluna D
+        canal: row[offset + 4] || "", // Coluna E
         estado: row[offset + 5] || "",
         categorias,
         historico,

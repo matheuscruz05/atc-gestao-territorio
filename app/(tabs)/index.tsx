@@ -495,9 +495,17 @@ export default function HomeScreen() {
       
       // Busca na lista de produtos
       const produto = PRODUTOS_CATALOGO.find(p => p.produtoId === produtoRef);
+      const produtoPorNome = PRODUTOS_CATALOGO.find(
+        p => p.produto.toLowerCase() === (produtoRef || "").toLowerCase()
+      );
+      if (produtoPorNome) {
+        return produtoPorNome.produto;
+      }
       
       if (!produto) {
-        console.log("Produto não encontrado:", produtoRef);
+        if (!produtoRef) {
+          console.log("Produto não encontrado:", produtoRef);
+        }
       }
       
       return produto ? produto.produto : produtoRef || "Sem produto";
