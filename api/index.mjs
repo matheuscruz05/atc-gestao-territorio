@@ -63,7 +63,7 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Error handler para parsing de JSON
-app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err, _req, res, next) => {
   if (err instanceof SyntaxError && 'body' in err) {
     console.error("[API] ❌ ERRO DE PARSING JSON:", err.message);
     return res.status(400).json({
@@ -74,11 +74,6 @@ app.use((err: any, _req: express.Request, res: express.Response, next: express.N
   }
   next();
 });
-
-// Wrapper para capturar erros em rotas async
-const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
-};
 
 // Log all requests for debugging
 app.use((req, _res, next) => {
@@ -176,7 +171,7 @@ app.use("/api/*", (_req, res) => {
 });
 
 // Global error handler - MUST return JSON (este deve ser o ÚLTIMO middleware)
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err, _req, res, _next) => {
   console.error("[API] ❌ ERRO NÃO TRATADO:");
   console.error("[API] Tipo:", typeof err);
   console.error("[API] Message:", err.message);
