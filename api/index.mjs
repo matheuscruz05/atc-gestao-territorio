@@ -199,10 +199,8 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   }
 });
 
-export default app;
-
 // Export com wrapper de erro para capturar crashes na inicialização
-export default async (req: any, res: any) => {
+const handler = async (req, res) => {
   try {
     return await app(req, res);
   } catch (error) {
@@ -221,3 +219,6 @@ export default async (req: any, res: any) => {
     }
   }
 };
+
+export { app };
+export default handler;
