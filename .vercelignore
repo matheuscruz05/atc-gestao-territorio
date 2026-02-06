@@ -36,6 +36,9 @@ VERCEL_BUILD_ERROR_ANALYSIS.md
 todo.md
 design.md
 
+# Legacy serverless entry (ignored to avoid path conflict)
+api/index.mjs
+
 # Database and migrations (generated at build time)
 drizzle/
 
