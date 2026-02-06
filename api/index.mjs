@@ -199,6 +199,8 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   }
 });
 
+export default app;
+
 // Export com wrapper de erro para capturar crashes na inicialização
 export default async (req: any, res: any) => {
   try {

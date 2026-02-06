@@ -189,14 +189,14 @@ router.post("/cadastros", async (req, res) => {
     const categoriasJson = JSON.stringify(categorias || []);
 
     // Preparar dados na ORDEM CORRETA (compatível com /create-or-update endpoint)
-    // A: cadastroId, B: atcEmail, C: atcNome, D: canal, E: unidade, F: estado, 
+    // A: cadastroId, B: atcEmail, C: atcNome, D: unidade, E: canal, F: estado, 
     // G: criadoEm, H: editadoEm, I: deletado, J: categorias
     const row = [
       cadastro.cadastroId,
       cadastro.atcEmail,
       cadastro.atcNome,
-      cadastro.canal,
       cadastro.unidade,
+      cadastro.canal,
       cadastro.estado,
       cadastro.criadoEm,
       cadastro.editadoEm || new Date().toISOString(),
@@ -593,8 +593,8 @@ router.post("/create-or-update", async (req, res) => {
       cadastro.cadastroId,
       cadastro.atcEmail,
       cadastro.atcNome,
-      cadastro.canal,
       cadastro.unidade,
+      cadastro.canal,
       cadastro.estado,
       cadastro.criadoEm,
       cadastro.editadoEm || "",

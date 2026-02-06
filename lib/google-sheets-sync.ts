@@ -326,7 +326,7 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
 
   try {
     logDebug("syncCadastrosFromSheets", "Buscando cadastros do Sheets");
-    // Estrutura: A-K (11 colunas): cadastroId, atcEmail, atcNome, canal, unidade, estado, criadoEm, editadoEm, deletado, categorias_json, historico_json
+    // Estrutura: A-K (11 colunas): cadastroId, atcEmail, atcNome, unidade, canal, estado, criadoEm, editadoEm, deletado, categorias_json, historico_json
     const range = "CADASTROS!A2:K1000";
     const url = `${SHEETS_API_BASE}/${config.spreadsheetId}/values/${range}?key=${config.apiKey}`;
     
@@ -355,7 +355,7 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
       }
 
       // ESTRUTURA CORRETA (servidor salva 11 colunas A-K):
-      // A: cadastroId, B: atcEmail, C: atcNome, D: canal, E: unidade, F: estado, 
+      // A: cadastroId, B: atcEmail, C: atcNome, D: unidade, E: canal, F: estado, 
       // G: criadoEm, H: editadoEm, I: deletado, J: categorias_json, K: historico_json
       
       let categoriasJson: string = "";
@@ -412,8 +412,8 @@ export async function syncCadastrosFromSheets(): Promise<Cadastro[]> {
         criadoEm: row[offset + 6] || new Date().toISOString(), // Coluna G
         atcEmail: row[offset + 1] || "",
         atcNome: row[offset + 2] || "",
-        canal: row[offset + 3] || "", // Coluna D
-        unidade: row[offset + 4] || "", // Coluna E
+        unidade: row[offset + 3] || "", // Coluna D
+        canal: row[offset + 4] || "", // Coluna E
         estado: row[offset + 5] || "",
         categorias,
         historico,
@@ -639,9 +639,12 @@ export async function sendCadastroToSheets(
     const categorias = normalizeCategorias(cadastro);
     console.log(`[sendCadastro] ✅ Categorias normalizadas: ${categorias.length}`);
     
-    // ⚠️ IMPORTANTE: Em Vercel, usar URLs relativas (/api/...) para evitar CORS
-    // Não usar getApiBaseUrl() porque pode apontar para URL errada em preview deploys
-    const serverUrl = "/api/sheets/create-or-update";
+    // Preferir base URL configurada (dev/localhost) e fallback para URL relativa
+    // Em produção, EXPO_PUBLIC_API_BASE_URL deve apontar para o mesmo domínio do app
+    const apiBaseUrl = getApiBaseUrl();
+    const serverUrl = apiBaseUrl
+      ? `${apiBaseUrl}/api/sheets/create-or-update`
+      : "/api/sheets/create-or-update";
     
     // Debug: log de origem e URL
     if (typeof window !== "undefined") {
@@ -783,7 +786,10 @@ export async function syncAllCadastrosToSheets(
     const sanitized = ativos.map((c) => ({ ...c, categorias: normalizeCategorias(c) }));
     logDebug("syncAllCadastrosToSheets", "Enviando cadastros", { total: sanitized.length });
     // Usar endpoint do servidor
-    const serverUrl = "/api/sheets/cadastros/bulk";
+    const apiBaseUrl = getApiBaseUrl();
+    const serverUrl = apiBaseUrl
+      ? `${apiBaseUrl}/api/sheets/cadastros/bulk`
+      : "/api/sheets/cadastros/bulk";
 
     const response = await fetch(serverUrl, {
       method: "POST",
@@ -906,8 +912,8 @@ export async function pullCadastrosFromSheets(): Promise<{
           criadoEm: row[offset + 6] || new Date().toISOString(),
           atcEmail: row[offset + 1] || "",
           atcNome: row[offset + 2] || "",
-          canal: row[offset + 3] || "",
-          unidade: row[offset + 4] || "",
+          unidade: row[offset + 3] || "",
+          canal: row[offset + 4] || "",
           estado: row[offset + 5] || "",
           categorias,
           historico,
