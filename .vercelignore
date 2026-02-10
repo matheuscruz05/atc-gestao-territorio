@@ -41,7 +41,9 @@ api/index.mjs
 api/index.ts
 
 # Database and migrations (generated at build time)
-drizzle/
+drizzle/**
+# NOTE: keep schema for TS imports in server/*
+!drizzle/schema.ts
 
 # Scripts
 scripts/
