@@ -21,16 +21,16 @@ try {
   console.warn("[API] ⚠️ dotenv config failed (normal no Vercel):", error);
 }
 
-import express from "express";
-import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "../../server/_core/oauth";
-import { appRouter } from "../../server/routers";
-import { createContext } from "../../server/_core/context";
-import { sheetsRouter } from "../../server/sheets-sync";
+console.log("[API] ✅ All modules imported successfully (bootstrap only)");
 
-console.log("[API] ✅ All modules imported successfully");
+let cachedApp: any = null;
 
-const app = express();
+const buildApp = async () => {
+  if (cachedApp) return cachedApp;
+
+  const expressMod = await import("express");
+  const express = expressMod.default ?? expressMod;
+  const app = express();
 
 // Log environment variables
 console.log(
@@ -73,11 +73,11 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Error handler para parsing de JSON
-app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (err instanceof SyntaxError && "body" in err) {
     console.error("[API] ❌ ERRO DE PARSING JSON:", err.message);
     return res.status(400).json({
@@ -87,25 +87,32 @@ app.use((err: any, _req: express.Request, res: express.Response, next: express.N
     });
   }
   next();
-});
+  });
 
 // Log all requests for debugging
-app.use((req, _res, next) => {
-  console.log(`[API] ${req.method} ${req.path}`);
-  next();
-});
+  app.use((req, _res, next) => {
+    console.log(`[API] ${req.method} ${req.path}`);
+    next();
+  });
 
-// Register routes
-registerOAuthRoutes(app);
+  // Register routes
+  try {
+    const { registerOAuthRoutes } = await import("../../server/_core/oauth");
+    registerOAuthRoutes(app);
+    console.log("[API] ✅ OAuth routes registered");
+  } catch (e) {
+    console.error("[API] ❌ ERRO ao registrar OAuth routes:", e);
+  }
 
 // Log antes de registrar rotas
-console.log("[API] Registrando rotas de sheets...");
-try {
-  app.use("/api/sheets", sheetsRouter);
-  console.log("[API] ✅ Rotas de sheets registradas com sucesso");
-} catch (e) {
-  console.error("[API] ❌ ERRO ao registrar rotas de sheets:", e);
-}
+  console.log("[API] Registrando rotas de sheets...");
+  try {
+    const { sheetsRouter } = await import("../../server/sheets-sync");
+    app.use("/api/sheets", sheetsRouter);
+    console.log("[API] ✅ Rotas de sheets registradas com sucesso");
+  } catch (e) {
+    console.error("[API] ❌ ERRO ao registrar rotas de sheets:", e);
+  }
 
 // Health check com diagnóstico
 app.get("/api/health", (_req, res) => {
@@ -172,55 +179,68 @@ app.post("/api/test-sheets", (_req, res) => {
   });
 });
 
-app.use(
-  "/api/trpc",
-  createExpressMiddleware({
-    router: appRouter,
-    createContext,
-  })
-);
+  try {
+    const { createExpressMiddleware } = await import("@trpc/server/adapters/express");
+    const { appRouter } = await import("../../server/routers");
+    const { createContext } = await import("../../server/_core/context");
+    app.use(
+      "/api/trpc",
+      createExpressMiddleware({
+        router: appRouter,
+        createContext,
+      })
+    );
+    console.log("[API] ✅ tRPC routes registered");
+  } catch (e) {
+    console.error("[API] ❌ ERRO ao registrar tRPC routes:", e);
+  }
 
 // Health check para Vercel
-app.get("/", (_req, res) => {
-  res.json({ status: "ok", message: "Server is running" });
-});
+  app.get("/", (_req, res) => {
+    res.json({ status: "ok", message: "Server is running" });
+  });
 
 // 404 Handler - antes do error handler
-app.use("/api/*", (req, res) => {
-  res.status(404).json({
-    error: "Not Found",
-    message: "Rota não encontrada",
-    path: req.path,
+  app.use("/api/*", (req, res) => {
+    res.status(404).json({
+      error: "Not Found",
+      message: "Rota não encontrada",
+      path: req.path,
+    });
   });
-});
 
 // Global error handler - MUST return JSON (este deve ser o ÚLTIMO middleware)
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error("[API] ❌ ERRO NÃO TRATADO:");
-  console.error("[API] Tipo:", typeof err);
-  console.error("[API] Message:", err.message);
-  console.error("[API] Stack:", err.stack);
-  console.error("[API] Full Error:", err);
+  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("[API] ❌ ERRO NÃO TRATADO:");
+    console.error("[API] Tipo:", typeof err);
+    console.error("[API] Message:", err.message);
+    console.error("[API] Stack:", err.stack);
+    console.error("[API] Full Error:", err);
 
-  // Garanta que sempre retorna JSON
-  if (!res.headersSent) {
-    const statusCode = err.status || err.statusCode || 500;
-    res.status(statusCode).json({
-      success: false,
-      error: "Internal Server Error",
-      message: err.message || String(err),
-      type: err.constructor.name,
-      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
-      timestamp: new Date().toISOString(),
-    });
-  } else {
-    console.warn("[API] ⚠️ Headers já foram enviados, não posso responder ao erro");
-  }
-});
+    // Garanta que sempre retorna JSON
+    if (!res.headersSent) {
+      const statusCode = err.status || err.statusCode || 500;
+      res.status(statusCode).json({
+        success: false,
+        error: "Internal Server Error",
+        message: err.message || String(err),
+        type: err.constructor.name,
+        stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      console.warn("[API] ⚠️ Headers já foram enviados, não posso responder ao erro");
+    }
+  });
+
+  cachedApp = app;
+  return app;
+};
 
 // Export com wrapper de erro para capturar crashes na inicialização
 const handler = async (req: express.Request, res: express.Response) => {
   try {
+    const app = await buildApp();
     return await app(req, res);
   } catch (error) {
     console.error("[API] ❌ CRASH NA INVOCAÇÃO DA FUNÇÃO:");
@@ -239,5 +259,4 @@ const handler = async (req: express.Request, res: express.Response) => {
   }
 };
 
-export { app };
 export default handler;
