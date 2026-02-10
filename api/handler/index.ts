@@ -10,6 +10,7 @@ console.log("[API] Timestamp:", new Date().toISOString());
 
 import { config } from "dotenv";
 import { resolve } from "path";
+import type { Request, Response, NextFunction } from "express";
 
 // Carregar .env.local primeiro, depois .env
 // (Vercel ignora estas linhas, usa environment variables do dashboard)
@@ -29,7 +30,7 @@ const buildApp = async () => {
   if (cachedApp) return cachedApp;
 
   const expressMod = await import("express");
-  const express = expressMod.default ?? expressMod;
+  const express = (expressMod.default ?? expressMod) as typeof import("express");
   const app = express();
 
 // Log environment variables
@@ -77,7 +78,7 @@ app.use((req, res, next) => {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Error handler para parsing de JSON
-  app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
   if (err instanceof SyntaxError && "body" in err) {
     console.error("[API] ❌ ERRO DE PARSING JSON:", err.message);
     return res.status(400).json({
@@ -97,7 +98,7 @@ app.use((req, res, next) => {
 
   // Register routes
   try {
-    const { registerOAuthRoutes } = await import("../../server/_core/oauth");
+    const { registerOAuthRoutes } = await import("../../server/_core/oauth.js");
     registerOAuthRoutes(app);
     console.log("[API] ✅ OAuth routes registered");
   } catch (e) {
@@ -107,7 +108,7 @@ app.use((req, res, next) => {
 // Log antes de registrar rotas
   console.log("[API] Registrando rotas de sheets...");
   try {
-    const { sheetsRouter } = await import("../../server/sheets-sync");
+    const { sheetsRouter } = await import("../../server/sheets-sync.js");
     app.use("/api/sheets", sheetsRouter);
     console.log("[API] ✅ Rotas de sheets registradas com sucesso");
   } catch (e) {
@@ -181,8 +182,8 @@ app.post("/api/test-sheets", (_req, res) => {
 
   try {
     const { createExpressMiddleware } = await import("@trpc/server/adapters/express");
-    const { appRouter } = await import("../../server/routers");
-    const { createContext } = await import("../../server/_core/context");
+    const { appRouter } = await import("../../server/routers.js");
+    const { createContext } = await import("../../server/_core/context.js");
     app.use(
       "/api/trpc",
       createExpressMiddleware({
@@ -210,7 +211,7 @@ app.post("/api/test-sheets", (_req, res) => {
   });
 
 // Global error handler - MUST return JSON (este deve ser o ÚLTIMO middleware)
-  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("[API] ❌ ERRO NÃO TRATADO:");
     console.error("[API] Tipo:", typeof err);
     console.error("[API] Message:", err.message);
@@ -238,7 +239,7 @@ app.post("/api/test-sheets", (_req, res) => {
 };
 
 // Export com wrapper de erro para capturar crashes na inicialização
-const handler = async (req: express.Request, res: express.Response) => {
+const handler = async (req: Request, res: Response) => {
   try {
     const app = await buildApp();
     return await app(req, res);
